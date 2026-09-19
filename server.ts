@@ -1,13 +1,13 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { createServer as createViteServer } from 'vite';
 import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
+const apiRouter = express.Router();
 
 // Enable CORS for API routes
 app.use((req, res, next) => {
@@ -91,7 +91,7 @@ function setCached<T>(key: string, data: T): void {
 // -------------------------------------------------------------
 // HEALTH CHECK
 // -------------------------------------------------------------
-app.get('/api/health', (_req: Request, res: Response) => {
+apiRouter.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -146,7 +146,7 @@ function normalizeChariowProduct(raw: any, storeUrl?: string) {
  * GET /api/chariow/products
  * Proxies GET https://api.chariow.com/v1/products with authentication and cache
  */
-app.get('/api/chariow/products', async (req: Request, res: Response) => {
+apiRouter.get('/chariow/products', async (req: Request, res: Response) => {
   try {
     const limit = req.query.limit ? Number(req.query.limit) : 50;
     const cursor = req.query.cursor ? String(req.query.cursor) : '';
@@ -272,7 +272,7 @@ app.get('/api/chariow/products', async (req: Request, res: Response) => {
  * GET /api/chariow/products/:productId
  * Proxies GET https://api.chariow.com/v1/products/{productId}
  */
-app.get('/api/chariow/products/:productId', async (req: Request, res: Response) => {
+apiRouter.get('/chariow/products/:productId', async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
     const customKey = req.headers['x-chariow-key'] as string | undefined;
@@ -333,7 +333,7 @@ app.get('/api/chariow/products/:productId', async (req: Request, res: Response) 
 // POST /api/payments/chariow/checkout
 // Maps plan -> Product ID & Generates verified checkout URL
 // -------------------------------------------------------------
-app.post('/api/payments/chariow/checkout', async (req: Request, res: Response) => {
+apiRouter.post('/payments/chariow/checkout', async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -535,7 +535,7 @@ app.post('/api/payments/chariow/checkout', async (req: Request, res: Response) =
 // 2. CHARIOW WEBHOOK / PULSE RECEIVER
 // GET & POST /api/webhooks/chariow
 // -------------------------------------------------------------
-app.get('/api/webhooks/chariow', (_req: Request, res: Response) => {
+apiRouter.get('/webhooks/chariow', (_req: Request, res: Response) => {
   return res.json({
     status: 'online',
     message: 'Endpoint Webhook Chariow Pulse opérationnel. Chariow envoie ses requêtes en méthode POST lors des ventes.',
@@ -544,7 +544,7 @@ app.get('/api/webhooks/chariow', (_req: Request, res: Response) => {
   });
 });
 
-app.post('/api/webhooks/chariow', async (req: Request, res: Response) => {
+apiRouter.post('/webhooks/chariow', async (req: Request, res: Response) => {
   try {
     const payload = req.body || {};
     const signature = req.headers['x-chariow-signature'] as string | undefined;
@@ -813,7 +813,7 @@ app.post('/api/webhooks/chariow', async (req: Request, res: Response) => {
 // 3. CHECK SUBSCRIPTIONS EXPIRATIONS & SYNC STATUS
 // GET /api/payments/status
 // -------------------------------------------------------------
-app.get('/api/payments/status', async (req: Request, res: Response) => {
+apiRouter.get('/payments/status', async (req: Request, res: Response) => {
   try {
     // Run expiration check via RPC or manual downgrade
     const now = new Date().toISOString();
@@ -853,11 +853,16 @@ app.get('/api/payments/status', async (req: Request, res: Response) => {
   }
 });
 
+// Mount router on both /api and / so it matches seamlessly in all environments (Vercel & standalone)
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
+
 // -------------------------------------------------------------
 // VITE MIDDLEWARE / SPA SERVING
 // -------------------------------------------------------------
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

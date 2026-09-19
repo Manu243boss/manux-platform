@@ -37,6 +37,35 @@ export interface ChariowConnectionConfig {
   apiUrl?: string;
 }
 
+function normalizeRawItem(raw: any, storeUrl?: string): ChariowProductNormalized {
+  const pictures = raw.pictures || {};
+  const cover = pictures.cover || raw.cover || raw.image_url || raw.main_image_url || (Array.isArray(raw.images) ? raw.images[0] : null) || null;
+  const thumbnail = pictures.thumbnail || raw.thumbnail || cover || null;
+  const displayImage = cover || thumbnail || null;
+
+  const cleanStoreUrl = storeUrl ? storeUrl.trim().replace(/\/+$/, '') : '';
+  const productId = String(raw.id || raw.product_id || '');
+  const storeBasedUrl = cleanStoreUrl && productId ? `${cleanStoreUrl}/${productId}` : '';
+  const finalUrl = storeBasedUrl || raw.url || raw.checkout_url || raw.permalink || (productId ? `https://chariow.com/p/${productId}` : '');
+
+  return {
+    id: productId,
+    name: raw.name || raw.title || raw.product_name || 'Produit Chariow',
+    description: raw.description || raw.short_description || '',
+    price: typeof raw.price === 'number' ? raw.price : parseFloat(raw.price) || 0,
+    currency: raw.currency || 'USD',
+    pictures: {
+      cover: cover,
+      thumbnail: thumbnail,
+    },
+    display_image: displayImage,
+    url: finalUrl,
+    checkout_url: finalUrl,
+    status: raw.status || 'published',
+    created_at: raw.created_at || new Date().toISOString(),
+  };
+}
+
 export class ChariowConnector {
   private baseUrl: string;
   private apiKey: string | null;
@@ -77,7 +106,7 @@ export class ChariowConnector {
     }
 
     try {
-      // Try local server proxy endpoint first
+      // 1. Try local server proxy endpoint first
       const headers: Record<string, string> = {
         'x-chariow-key': keyToTest.trim(),
         Accept: 'application/json',
@@ -99,14 +128,6 @@ export class ChariowConnector {
           json = await response.json();
         } catch {
           json = null;
-        }
-      } else {
-        const textBody = await response.text();
-        if (textBody.includes('<!doctype') || textBody.includes('<html')) {
-          return {
-            success: false,
-            message: 'Le serveur backend /api/chariow/products n’est pas accessible ou renvoie du code HTML (vérifiez la configuration Vercel).',
-          };
         }
       }
 
@@ -130,16 +151,28 @@ export class ChariowConnector {
         };
       }
 
-      if (response.status === 404) {
-        return {
-          success: false,
-          message: 'Point d\'accès Chariow non disponible (404). Vérifiez votre URL de boutique.',
-        };
+      // 2. Direct fallback test to Chariow API if server returned 500 / 404
+      try {
+        const directRes = await fetch('https://api.chariow.com/v1/products?limit=1', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${keyToTest.trim()}`,
+            Accept: 'application/json',
+          },
+        });
+        if (directRes.ok) {
+          return {
+            success: true,
+            message: 'Connexion à votre boutique Chariow établie avec succès (Direct) !',
+          };
+        }
+      } catch {
+        // direct test ignored
       }
 
       return {
         success: false,
-        message: `Erreur Chariow API (Code: ${response.status})`,
+        message: json?.message || `Erreur de connexion API Chariow (Code: ${response.status})`,
       };
     } catch (err: any) {
       return {
@@ -150,7 +183,7 @@ export class ChariowConnector {
   }
 
   /**
-   * Fetch products from connected Chariow store via server proxy
+   * Fetch products from connected Chariow store via server proxy with direct fallback
    */
   public async fetchProducts(options?: {
     apiKey?: string;
@@ -168,12 +201,13 @@ export class ChariowConnector {
       };
     }
 
-    try {
-      const queryParams = new URLSearchParams();
-      if (options?.limit) queryParams.set('limit', String(options.limit));
-      if (options?.cursor) queryParams.set('cursor', options.cursor);
-      if (options?.storeUrl) queryParams.set('store_url', options.storeUrl);
+    const queryParams = new URLSearchParams();
+    if (options?.limit) queryParams.set('limit', String(options.limit));
+    if (options?.cursor) queryParams.set('cursor', options.cursor);
+    if (options?.storeUrl) queryParams.set('store_url', options.storeUrl);
 
+    // 1. Primary Attempt: Call Server Proxy
+    try {
       const headers: Record<string, string> = { 
         Accept: 'application/json',
         'x-chariow-key': keyToUse.trim(),
@@ -196,50 +230,66 @@ export class ChariowConnector {
         } catch {
           resData = null;
         }
-      } else {
-        const textBody = await response.text();
-        if (textBody.includes('<!doctype') || textBody.includes('<html')) {
-          return {
-            products: [],
-            error: 'Le point d’accès /api/chariow/products renvoie une page HTML au lieu de JSON (Vérifiez le déploiement Vercel des fonctions API).',
-          };
-        }
-        try {
-          resData = JSON.parse(textBody);
-        } catch {
-          resData = null;
-        }
       }
 
-      if (!response.ok || !resData) {
-        if (response.status === 401) {
-          return {
-            products: [],
-            error: 'Clé API Chariow invalide ou expirée (401). Vérifiez la clé saisie.',
-          };
-        }
-        if (response.status === 404) {
-          return {
-            products: [],
-            error: 'Le serveur de synchronisation Chariow a retourné une erreur 404. Assurez-vous que l’application backend est active.',
-          };
-        }
+      if (response.ok && resData && Array.isArray(resData.data)) {
         return {
-          products: [],
-          error: resData?.message || `Erreur de connexion API Chariow (${response.status})`,
+          products: resData.data,
+          has_more: resData.has_more ?? false,
+          next_cursor: resData.next_cursor || null,
         };
       }
 
-      const products: ChariowProductNormalized[] = resData.data || [];
-
-      return {
-        products,
-        has_more: resData.has_more ?? false,
-        next_cursor: resData.next_cursor || null,
-      };
-    } catch (err: any) {
-      return { products: [], error: err?.message || 'Échec de synchronisation Chariow' };
+      if (response.status === 401) {
+        return {
+          products: [],
+          error: 'Clé API Chariow non valide ou expirée (401). Vérifiez la clé saisie.',
+        };
+      }
+    } catch (proxyErr) {
+      console.debug('[ChariowConnector] Server proxy attempt notice:', proxyErr);
     }
+
+    // 2. Secondary Fallback Attempt: Direct API Call from client
+    try {
+      const directCandidates = [
+        `https://api.chariow.com/v1/products?${queryParams.toString()}`,
+        `https://api.chariow.com/v1/stores/me/products?${queryParams.toString()}`,
+        `https://api.chariow.com/v1/merchant/products?${queryParams.toString()}`,
+      ];
+
+      for (const directUrl of directCandidates) {
+        try {
+          const directRes = await fetch(directUrl, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${keyToUse.trim()}`,
+              Accept: 'application/json',
+            },
+          });
+
+          if (directRes.ok) {
+            const directJson = await directRes.json();
+            const rawList = Array.isArray(directJson) ? directJson : directJson?.data || directJson?.products || [];
+            const normalized = rawList.map((item: any) => normalizeRawItem(item, options?.storeUrl));
+            return {
+              products: normalized,
+              has_more: Boolean(directJson?.has_more),
+              next_cursor: directJson?.next_cursor || null,
+            };
+          }
+        } catch {
+          // try next
+        }
+      }
+    } catch (directErr) {
+      console.debug('[ChariowConnector] Direct fetch attempt notice:', directErr);
+    }
+
+    return {
+      products: [],
+      error: 'Erreur de connexion API Chariow. Vérifiez que votre clé API Chariow est correcte et active, et que votre boutique Chariow est publiée.',
+    };
   }
 
   /**
