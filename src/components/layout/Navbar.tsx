@@ -161,9 +161,9 @@ export const Navbar: React.FC = () => {
       />
 
       <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-slate-200/90 shadow-2xs h-16">
-        <div className="h-full px-3 sm:px-5 flex items-center justify-between gap-3">
+        <div className="h-full px-2 sm:px-5 flex items-center justify-between gap-1.5 sm:gap-3 max-w-full">
           {/* Left: Hamburger Menu & Brand Logo */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button
               type="button"
               onClick={() => {
@@ -174,13 +174,14 @@ export const Navbar: React.FC = () => {
                 }
               }}
               aria-label="Menu de navigation"
-              className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
             >
               <Menu className="w-5 h-5" />
             </button>
 
             <a href="/" className="flex items-center">
-              <Logo size="md" subtitle="Chariow Gateway" />
+              <Logo size="sm" subtitle="" className="sm:hidden" />
+              <Logo size="md" subtitle="Chariow Gateway" className="hidden sm:flex" />
             </a>
           </div>
 
@@ -358,12 +359,12 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Right Actions: Store Showcase Badge, Currency Modal Trigger, Mobile Search Button, Create & Profile */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Mobile Search Trigger Button */}
             <button
               type="button"
               onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-              className="md:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="md:hidden p-1.5 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
               aria-label="Ouvrir la recherche"
             >
               <Search className="w-4 h-4" />
@@ -395,10 +396,10 @@ export const Navbar: React.FC = () => {
             <button
               type="button"
               onClick={() => setCountryModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors shadow-2xs cursor-pointer"
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors shadow-2xs cursor-pointer"
             >
               <Globe className="w-3.5 h-3.5 text-amber-500" />
-              <span className="font-bold text-slate-900">{currency}</span>
+              <span className="font-bold text-slate-900 text-[11px] sm:text-xs">{currency}</span>
             </button>
 
             {/* Quick "Créer / Publier" Action */}
@@ -416,16 +417,17 @@ export const Navbar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className="flex items-center gap-2 p-0.5 rounded-full hover:ring-2 hover:ring-amber-300 transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 p-0.5 rounded-full hover:ring-2 hover:ring-emerald-400 transition-all cursor-pointer"
+                  aria-label="Mon profil et compte"
                 >
                   {profile?.avatar_url ? (
                     <img
                       src={profile.avatar_url}
                       alt={profile.display_name || 'Profil'}
-                      className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-slate-200"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-slate-900 text-amber-400 font-bold text-xs flex items-center justify-center border border-slate-200">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900 text-amber-400 font-bold text-xs flex items-center justify-center border border-slate-200">
                       {profile?.display_name?.slice(0, 1).toUpperCase() || 'M'}
                     </div>
                   )}
@@ -505,16 +507,16 @@ export const Navbar: React.FC = () => {
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 <a
                   href="/auth/login"
-                  className="px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-xl transition-colors"
+                  className="px-2 sm:px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-950 hover:bg-slate-100 rounded-xl transition-colors shrink-0"
                 >
                   Connexion
                 </a>
                 <a
                   href="/auth/register"
-                  className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-500 rounded-xl shadow-2xs transition-colors"
+                  className="hidden sm:inline-flex px-3 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-500 rounded-xl shadow-2xs transition-colors shrink-0"
                 >
                   S'inscrire
                 </a>
