@@ -36,6 +36,7 @@ export const DashboardSubscription: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [currentSub, setCurrentSub] = useState<Subscription | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [visibleTransactionsCount, setVisibleTransactionsCount] = useState(5);
   const [loading, setLoading] = useState(true);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [pendingCheckoutUrl, setPendingCheckoutUrl] = useState<string | null>(null);
@@ -96,7 +97,7 @@ export const DashboardSubscription: React.FC = () => {
         // Refresh local UI states
         const [subRes, txRes] = await Promise.all([
           supabase.from('subscriptions').select('*, plan:plans(*)').eq('user_id', user.id).maybeSingle(),
-          supabase.from('payment_transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+          supabase.from('payment_transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50),
         ]);
 
         if (subRes.data) setCurrentSub(subRes.data);
@@ -120,7 +121,7 @@ export const DashboardSubscription: React.FC = () => {
         setLoading(true);
         const [subRes, txRes] = await Promise.all([
           supabase.from('subscriptions').select('*, plan:plans(*)').eq('user_id', user.id).maybeSingle(),
-          supabase.from('payment_transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+          supabase.from('payment_transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50),
         ]);
 
         if (subRes.data) setCurrentSub(subRes.data);
@@ -529,70 +530,95 @@ export const DashboardSubscription: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
-            {transactions.map((tx) => (
-              <div
-                key={tx.id}
-                className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs hover:bg-slate-50/60 px-3 rounded-xl transition-colors"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-black text-slate-900 text-sm uppercase tracking-wide">
-                      Forfait {tx.plan}
-                    </span>
-                    <span className="font-black text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-300 text-xs">
-                      ${tx.amount} {tx.currency || 'USD'}
-                    </span>
-                  </div>
-
-                  <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-4 gap-y-1 pt-0.5">
-                    <span>
-                      Réf Vente Chariow :{' '}
-                      <code className="font-mono text-slate-800 font-bold bg-slate-100 px-1.5 py-0.5 rounded">
-                        {tx.provider_sale_id}
-                      </code>
-                    </span>
-                    <span>
-                      ID Produit : <code className="font-mono text-slate-700">{tx.product_id}</code>
-                    </span>
-                    <span>
-                      {new Date(tx.created_at).toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-
-                  {tx.customer_email && (
-                    <div className="text-[11px] text-slate-500">
-                      Email Client : <span className="font-semibold text-slate-800">{tx.customer_email}</span>
+          <div className="space-y-4">
+            <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin">
+              {transactions.slice(0, visibleTransactionsCount).map((tx) => (
+                <div
+                  key={tx.id}
+                  className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs hover:bg-slate-50/60 px-3 rounded-xl transition-colors"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-black text-slate-900 text-sm uppercase tracking-wide">
+                        Forfait {tx.plan}
+                      </span>
+                      <span className="font-black text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-300 text-xs">
+                        ${tx.amount} {tx.currency || 'USD'}
+                      </span>
                     </div>
-                  )}
-                </div>
 
-                <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-                  {tx.status === 'completed' || tx.status === 'success' ? (
-                    <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5 animate-pulse">
-                      <Check className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Payé (Pulse)</span>
-                    </span>
-                  ) : tx.status === 'pending' || tx.status === 'waiting' ? (
-                    <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-full bg-amber-100 text-amber-950 border border-amber-300 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin-slow" />
-                      <span>En attente (Caisse)</span>
-                    </span>
-                  ) : (
-                    <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-full bg-rose-100 text-rose-900 border border-rose-300 flex items-center gap-1.5">
-                      <X className="w-3.5 h-3.5 text-rose-700" />
-                      <span>Abandonné / Échoué</span>
-                    </span>
-                  )}
+                    <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-x-4 gap-y-1 pt-0.5">
+                      <span>
+                        Réf Vente Chariow :{' '}
+                        <code className="font-mono text-slate-800 font-bold bg-slate-100 px-1.5 py-0.5 rounded">
+                          {tx.provider_sale_id}
+                        </code>
+                      </span>
+                      <span>
+                        ID Produit : <code className="font-mono text-slate-700">{tx.product_id}</code>
+                      </span>
+                      <span>
+                        {new Date(tx.created_at).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+
+                    {tx.customer_email && (
+                      <div className="text-[11px] text-slate-500">
+                        Email Client : <span className="font-semibold text-slate-800">{tx.customer_email}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                    {tx.status === 'completed' || tx.status === 'success' ? (
+                      <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5 animate-pulse">
+                        <Check className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Payé (Pulse)</span>
+                      </span>
+                    ) : tx.status === 'pending' || tx.status === 'waiting' ? (
+                      <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-full bg-amber-100 text-amber-950 border border-amber-300 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin-slow" />
+                        <span>En attente (Caisse)</span>
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-full bg-rose-100 text-rose-900 border border-rose-300 flex items-center gap-1.5">
+                        <X className="w-3.5 h-3.5 text-rose-700" />
+                        <span>Abandonné / Échoué</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
+              ))}
+            </div>
+
+            {transactions.length > 5 && (
+              <div className="flex justify-center pt-2 border-t border-slate-100 gap-3">
+                {visibleTransactionsCount < transactions.length && (
+                  <button
+                    type="button"
+                    onClick={() => setVisibleTransactionsCount((prev) => prev + 5)}
+                    className="px-4 py-2 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Voir plus ({transactions.length - visibleTransactionsCount} restants)
+                  </button>
+                )}
+                {visibleTransactionsCount > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setVisibleTransactionsCount(5)}
+                    className="px-4 py-2 text-xs font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Voir moins (Afficher 5)
+                  </button>
+                )}
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>

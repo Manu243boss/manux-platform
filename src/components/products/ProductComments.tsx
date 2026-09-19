@@ -49,8 +49,24 @@ export const ProductComments: React.FC<ProductCommentsProps> = ({ productId, cre
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const [likedComments, setLikedComments] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'popular'>('newest');
 
   const localCacheKey = `manux_prod_comments_v3_${productId}`;
+
+  const sortedComments = React.useMemo(() => {
+    return [...comments].sort((a, b) => {
+      if (sortBy === 'newest') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      if (sortBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      if (sortBy === 'popular') {
+        return (b.likes_count || 0) - (a.likes_count || 0);
+      }
+      return 0;
+    });
+  }, [comments, sortBy]);
 
   useEffect(() => {
     // Check in-memory cache first
@@ -417,6 +433,48 @@ export const ProductComments: React.FC<ProductCommentsProps> = ({ productId, cre
         </div>
       </form>
 
+      {/* Mini filter menu */}
+      {comments.length > 0 && (
+        <div className="flex items-center justify-between text-[11px] border-b border-slate-100 pb-2 pt-1 px-1">
+          <span className="text-slate-500 font-bold">Filtrer par :</span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSortBy('newest')}
+              className={`px-2.5 py-1 rounded-lg font-black transition-colors cursor-pointer ${
+                sortBy === 'newest'
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300/40 text-xs'
+                  : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              Récents
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortBy('popular')}
+              className={`px-2.5 py-1 rounded-lg font-black transition-colors cursor-pointer ${
+                sortBy === 'popular'
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300/40 text-xs'
+                  : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              Populaires
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortBy('oldest')}
+              className={`px-2.5 py-1 rounded-lg font-black transition-colors cursor-pointer ${
+                sortBy === 'oldest'
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300/40 text-xs'
+                  : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              Anciens
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Comments Scrollable List Container (Fixed viewport to avoid pushing down the page endlessly) */}
       <div className="max-h-[380px] sm:max-h-[420px] overflow-y-auto pr-1 space-y-4 scrollbar-thin">
         {loading ? (
@@ -431,7 +489,7 @@ export const ProductComments: React.FC<ProductCommentsProps> = ({ productId, cre
           </div>
         ) : (
           <div className="space-y-4 pt-1">
-            {comments.map((comment) => {
+            {sortedComments.map((comment) => {
               const isLiked = Boolean(likedComments[comment.id]);
               const hasReplies = comment.replies && comment.replies.length > 0;
               const isExpanded = Boolean(expandedThreads[comment.id]);

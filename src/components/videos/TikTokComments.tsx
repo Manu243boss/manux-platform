@@ -34,9 +34,25 @@ export const TikTokComments: React.FC<TikTokCommentsProps> = ({ videoId, creator
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({});
   const [likedComments, setLikedComments] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'popular'>('newest');
 
   // Storage key for resilient caching
   const localCacheKey = `manux_comments_v2_${videoId}`;
+
+  const sortedComments = React.useMemo(() => {
+    return [...comments].sort((a, b) => {
+      if (sortBy === 'newest') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      if (sortBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      if (sortBy === 'popular') {
+        return (b.likes_count || 0) - (a.likes_count || 0);
+      }
+      return 0;
+    });
+  }, [comments, sortBy]);
 
   useEffect(() => {
     // 1. Check in-memory cache first
@@ -326,6 +342,48 @@ export const TikTokComments: React.FC<TikTokCommentsProps> = ({ videoId, creator
         </div>
       </div>
 
+      {/* Mini filter menu */}
+      {comments.length > 0 && (
+        <div className="flex items-center justify-between text-[11px] border-b border-slate-100 px-4 sm:px-6 py-2 bg-slate-50/50">
+          <span className="text-slate-500 font-bold">Filtrer par :</span>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSortBy('newest')}
+              className={`px-2.5 py-1 rounded-lg font-black transition-colors cursor-pointer ${
+                sortBy === 'newest'
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300/40 text-xs'
+                  : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              Récents
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortBy('popular')}
+              className={`px-2.5 py-1 rounded-lg font-black transition-colors cursor-pointer ${
+                sortBy === 'popular'
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300/40 text-xs'
+                  : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              Populaires
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortBy('oldest')}
+              className={`px-2.5 py-1 rounded-lg font-black transition-colors cursor-pointer ${
+                sortBy === 'oldest'
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300/40 text-xs'
+                  : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              Anciens
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Comments List (Scrollable bounded container so card remains neat and does not push page down) */}
       <div className="p-4 sm:p-6 space-y-4 max-h-[360px] sm:max-h-[400px] overflow-y-auto scrollbar-thin">
         {loading ? (
@@ -342,7 +400,7 @@ export const TikTokComments: React.FC<TikTokCommentsProps> = ({ videoId, creator
             </p>
           </div>
         ) : (
-          comments.map((comm) => {
+          sortedComments.map((comm) => {
             const isLiked = likedComments[comm.id];
             const repliesCount = comm.replies?.length || 0;
             const isThreadExpanded = expandedThreads[comm.id];
