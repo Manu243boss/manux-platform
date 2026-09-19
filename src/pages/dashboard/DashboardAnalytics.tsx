@@ -85,6 +85,7 @@ export const DashboardAnalytics: React.FC = () => {
   // Upgrade Modal
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState('Graphiques & Analyse Avancée');
+  const [activeMetric, setActiveMetric] = useState<'impressions' | 'clicks' | 'ctr' | 'purchases' | 'comments' | 'likes'>('impressions');
 
   // Subscription check
   const plan = profile?.subscription_plan || 'free';
@@ -321,16 +322,110 @@ export const DashboardAnalytics: React.FC = () => {
       (e) => e.event_type === 'product_view' || e.event_type === 'video_view' || e.event_type === 'creator_view'
     ).length;
     const dayComments = commentsData.filter((c) => c.created_at?.startsWith(dateStr)).length;
+    const purchases = dayEvents.filter(
+      (e) => e.event_type === 'purchase_click' || e.event_type === 'purchase_intent'
+    ).length;
+    
+    // Sum comment likes for comments belonging to that day
+    const dayLikes = commentsData
+      .filter((c) => c.created_at?.startsWith(dateStr))
+      .reduce((acc, c) => acc + (c.likes_count || 0), 0);
+
+    const ctrVal = views > 0 ? Number(((clicks / views) * 100).toFixed(1)) : 0;
+
     return {
       day: d.toLocaleDateString('fr-FR', { weekday: 'short' }),
+      dateLabel: d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
       views,
       clicks,
       comments: dayComments,
+      purchases,
+      likes: dayLikes,
+      ctr: ctrVal,
     };
   });
 
-  const maxDailyViews = Math.max(...last7Days.map((d) => Math.max(d.views, d.clicks, d.comments)), 5);
+  const maxDailyViews = Math.max(...last7Days.map((d) => Math.max(d.views, d.clicks, d.comments, d.purchases, d.likes)), 5);
   const displayedEvents = allEvents.slice(0, visibleEventsCount);
+
+  const handleMetricClick = (metric: 'impressions' | 'clicks' | 'ctr' | 'purchases' | 'comments' | 'likes', label: string) => {
+    if (!isSubscribed) {
+      setSelectedMetric(label);
+      setUpgradeModalOpen(true);
+    } else {
+      setActiveMetric(metric);
+      setTab('overview');
+    }
+  };
+
+  const metricConfigs = {
+    impressions: {
+      title: "Impressions Catalogue",
+      description: "Nombre total de vues sur vos fiches produits, vidéos de démo et page de profil public.",
+      tip: "Astuce : Partagez votre lien de profil public /creators/ dans votre bio Instagram ou TikTok pour maximiser vos impressions.",
+      colorClass: "from-amber-400 to-amber-500 bg-amber-500 text-amber-950",
+      iconClass: "text-amber-500",
+      bgClass: "bg-amber-50",
+      accentBorder: "border-amber-200",
+      textColor: "text-amber-900",
+      unit: "vues"
+    },
+    clicks: {
+      title: "Clics de Redirection Chariow",
+      description: "Nombre de clics des visiteurs sur vos boutons d'achat, les redirigeant vers votre vraie boutique Chariow.",
+      tip: "Astuce : Proposez des vidéos de démonstration claires et courtes pour inciter vos visiteurs à cliquer sur 'Acheter'.",
+      colorClass: "from-emerald-500 to-emerald-600 bg-emerald-600 text-emerald-950",
+      iconClass: "text-emerald-600",
+      bgClass: "bg-emerald-50",
+      accentBorder: "border-emerald-200",
+      textColor: "text-emerald-900",
+      unit: "clics"
+    },
+    ctr: {
+      title: "Taux de Clic (CTR)",
+      description: "Le ratio entre les impressions de vos fiches et les redirections effectives vers Chariow.",
+      tip: "Astuce : Un CTR supérieur à 10% indique un excellent ciblage. Améliorez vos miniatures pour booster le CTR.",
+      colorClass: "from-teal-400 to-teal-500 bg-teal-500 text-teal-950",
+      iconClass: "text-teal-600",
+      bgClass: "bg-teal-50",
+      accentBorder: "border-teal-200",
+      textColor: "text-teal-900",
+      unit: "%"
+    },
+    purchases: {
+      title: "Intentions d'Achat (Webhooks)",
+      description: "Nombre de transactions complétées ou d'intentions d'achat interceptées via l'API Chariow.",
+      tip: "Astuce : Suivez de près les pics de conversion après l'envoi de vos e-mails marketing ou publications sociales.",
+      colorClass: "from-purple-500 to-purple-600 bg-purple-600 text-purple-950",
+      iconClass: "text-purple-600",
+      bgClass: "bg-purple-50",
+      accentBorder: "border-purple-200",
+      textColor: "text-purple-900",
+      unit: "achats"
+    },
+    comments: {
+      title: "Avis & Questions Visiteurs",
+      description: "Commentaires laissés par l'audience sous vos démonstrations ou pages de produits.",
+      tip: "Astuce : Répondre aux commentaires augmente la confiance et peut doubler vos ventes sur Chariow.",
+      colorClass: "from-indigo-500 to-indigo-600 bg-indigo-600 text-indigo-950",
+      iconClass: "text-indigo-600",
+      bgClass: "bg-indigo-50",
+      accentBorder: "border-indigo-200",
+      textColor: "text-indigo-900",
+      unit: "avis"
+    },
+    likes: {
+      title: "Mentions J'aime Reçues",
+      description: "Nombre total de coeurs et mentions J'aime ajoutés par les utilisateurs à vos commentaires ou avis.",
+      tip: "Astuce : Les avis avec beaucoup de mentions J'aime sont plus visibles et rassurent les nouveaux acheteurs.",
+      colorClass: "from-rose-500 to-rose-600 bg-rose-600 text-rose-950",
+      iconClass: "text-rose-600",
+      bgClass: "bg-rose-50",
+      accentBorder: "border-rose-200",
+      textColor: "text-rose-900",
+      unit: "likes"
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -456,143 +551,305 @@ export const DashboardAnalytics: React.FC = () => {
 
       {/* KPI Cards Grid (Including Comments & Likes) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
-        <Card className="p-4 sm:p-5 space-y-2">
+        {/* Card 1: Impressions */}
+        <div
+          onClick={() => handleMetricClick('impressions', 'Graphiques d\'Impressions')}
+          className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer select-none space-y-2 relative bg-white ${
+            isSubscribed && activeMetric === 'impressions'
+              ? 'border-amber-500 shadow-xs ring-2 ring-amber-500/15 scale-[1.02]'
+              : 'border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+          }`}
+        >
           <div className="flex items-center justify-between text-slate-800">
             <span className="text-[10px] font-black uppercase tracking-wider">Impressions</span>
-            <Eye className="w-3.5 h-3.5" />
+            <Eye className="w-3.5 h-3.5 text-amber-600" />
           </div>
           <div className="text-xl sm:text-2xl font-black text-slate-950">{totalImpressions}</div>
           <p className="text-[10px] font-bold text-slate-600">Vues catalogue</p>
-        </Card>
+          {!isSubscribed && <Lock className="absolute top-1 right-2 w-2.5 h-2.5 text-slate-400" />}
+        </div>
 
-        <Card className="p-4 sm:p-5 space-y-2">
+        {/* Card 2: Clics Chariow */}
+        <div
+          onClick={() => handleMetricClick('clicks', 'Graphiques de Clics Chariow')}
+          className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer select-none space-y-2 relative bg-white ${
+            isSubscribed && activeMetric === 'clicks'
+              ? 'border-emerald-600 shadow-xs ring-2 ring-emerald-500/15 scale-[1.02]'
+              : 'border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+          }`}
+        >
           <div className="flex items-center justify-between text-slate-800">
             <span className="text-[10px] font-black uppercase tracking-wider">Clics Chariow</span>
             <MousePointerClick className="w-3.5 h-3.5 text-emerald-700" />
           </div>
           <div className="text-xl sm:text-2xl font-black text-emerald-950">{totalChariowClicks}</div>
           <p className="text-[10px] font-bold text-slate-600">Redirections</p>
-        </Card>
+          {!isSubscribed && <Lock className="absolute top-1 right-2 w-2.5 h-2.5 text-slate-400" />}
+        </div>
 
-        <Card className="p-4 sm:p-5 space-y-2">
+        {/* Card 3: CTR */}
+        <div
+          onClick={() => handleMetricClick('ctr', 'Taux de Clic (CTR)')}
+          className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer select-none space-y-2 relative bg-white ${
+            isSubscribed && activeMetric === 'ctr'
+              ? 'border-teal-500 shadow-xs ring-2 ring-teal-500/15 scale-[1.02]'
+              : 'border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+          }`}
+        >
           <div className="flex items-center justify-between text-slate-800">
             <span className="text-[10px] font-black uppercase tracking-wider">CTR</span>
             <Percent className="w-3.5 h-3.5 text-amber-800" />
           </div>
           <div className="text-xl sm:text-2xl font-black text-slate-950">{ctr}%</div>
           <p className="text-[10px] font-bold text-slate-600">Clics / Vues</p>
-        </Card>
+          {!isSubscribed && <Lock className="absolute top-1 right-2 w-2.5 h-2.5 text-slate-400" />}
+        </div>
 
-        <Card className="p-4 sm:p-5 space-y-2">
+        {/* Card 4: Achats Chariow */}
+        <div
+          onClick={() => handleMetricClick('purchases', 'Graphiques d\'Achats Chariow')}
+          className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer select-none space-y-2 relative bg-white ${
+            isSubscribed && activeMetric === 'purchases'
+              ? 'border-purple-500 shadow-xs ring-2 ring-purple-500/15 scale-[1.02]'
+              : 'border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+          }`}
+        >
           <div className="flex items-center justify-between text-slate-800">
             <span className="text-[10px] font-black uppercase tracking-wider">Achats Chariow</span>
             <ShoppingBag className="w-3.5 h-3.5 text-purple-700" />
           </div>
           <div className="text-xl sm:text-2xl font-black text-slate-950">{totalPurchases}</div>
           <p className="text-[10px] font-bold text-slate-600">Intentions d'achat</p>
-        </Card>
+          {!isSubscribed && <Lock className="absolute top-1 right-2 w-2.5 h-2.5 text-slate-400" />}
+        </div>
 
-        <Card className="p-4 sm:p-5 space-y-2">
+        {/* Card 5: Commentaires */}
+        <div
+          onClick={() => handleMetricClick('comments', 'Analyse des Commentaires')}
+          className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer select-none space-y-2 relative bg-white ${
+            isSubscribed && activeMetric === 'comments'
+              ? 'border-indigo-500 shadow-xs ring-2 ring-indigo-500/15 scale-[1.02]'
+              : 'border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+          }`}
+        >
           <div className="flex items-center justify-between text-slate-800">
             <span className="text-[10px] font-black uppercase tracking-wider">Commentaires</span>
             <MessageCircle className="w-3.5 h-3.5 text-purple-600" />
           </div>
           <div className="text-xl sm:text-2xl font-black text-purple-950">{commentsData.length}</div>
           <p className="text-[10px] font-bold text-slate-600">Avis reçus</p>
-        </Card>
+          {!isSubscribed && <Lock className="absolute top-1 right-2 w-2.5 h-2.5 text-slate-400" />}
+        </div>
 
-        <Card className="p-4 sm:p-5 space-y-2">
+        {/* Card 6: Likes Avis */}
+        <div
+          onClick={() => handleMetricClick('likes', 'Analyse des Likes d\'Avis')}
+          className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 cursor-pointer select-none space-y-2 relative bg-white ${
+            isSubscribed && activeMetric === 'likes'
+              ? 'border-rose-500 shadow-xs ring-2 ring-rose-500/15 scale-[1.02]'
+              : 'border-slate-200 hover:border-slate-300 hover:shadow-2xs'
+          }`}
+        >
           <div className="flex items-center justify-between text-slate-800">
             <span className="text-[10px] font-black uppercase tracking-wider">Likes Avis</span>
             <Heart className="w-3.5 h-3.5 text-rose-600" />
           </div>
           <div className="text-xl sm:text-2xl font-black text-rose-950">{totalCommentLikes}</div>
           <p className="text-[10px] font-bold text-slate-600">J'aime reçus</p>
-        </Card>
+          {!isSubscribed && <Lock className="absolute top-1 right-2 w-2.5 h-2.5 text-slate-400" />}
+        </div>
       </div>
 
       {/* TAB 1: VUE D'ENSEMBLE */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          {/* Interactive 7-Day Trend Chart */}
-          <Card className="p-5 sm:p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
-              <div>
-                <h2 className="text-sm font-black text-slate-950 uppercase tracking-wider flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-amber-600" />
-                  <span>Activité & Engagement des 7 Derniers Jours</span>
-                </h2>
-                <p className="text-xs font-semibold text-slate-700 mt-0.5">
-                  Comparatif quotidien entre les impressions, les clics sortants Chariow et les avis
-                </p>
+          {isSubscribed ? (
+            <Card className="p-5 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`p-1.5 rounded-lg bg-slate-100 ${metricConfigs[activeMetric].iconClass}`}>
+                      {activeMetric === 'impressions' && <Eye className="w-5 h-5" />}
+                      {activeMetric === 'clicks' && <MousePointerClick className="w-5 h-5" />}
+                      {activeMetric === 'ctr' && <Percent className="w-5 h-5" />}
+                      {activeMetric === 'purchases' && <ShoppingBag className="w-5 h-5" />}
+                      {activeMetric === 'comments' && <MessageCircle className="w-5 h-5" />}
+                      {activeMetric === 'likes' && <Heart className="w-5 h-5" />}
+                    </span>
+                    <h2 className="text-sm sm:text-base font-black text-slate-950 uppercase tracking-wider">
+                      {metricConfigs[activeMetric].title} (7 Derniers Jours)
+                    </h2>
+                  </div>
+                  <p className="text-xs font-semibold text-slate-700 mt-1">
+                    {metricConfigs[activeMetric].description}
+                  </p>
+                </div>
+                
+                {/* Total pill */}
+                <div className="px-3.5 py-1.5 rounded-full bg-slate-900 text-white font-black text-xs shrink-0 select-none">
+                  Total : {
+                    activeMetric === 'impressions' ? totalImpressions :
+                    activeMetric === 'clicks' ? totalChariowClicks :
+                    activeMetric === 'ctr' ? `${ctr}%` :
+                    activeMetric === 'purchases' ? totalPurchases :
+                    activeMetric === 'comments' ? commentsData.length :
+                    totalCommentLikes
+                  } {activeMetric !== 'ctr' ? metricConfigs[activeMetric].unit : ''}
+                </div>
               </div>
 
-              <div className="flex items-center gap-4 text-xs font-bold">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded bg-amber-500" />
-                  <span className="text-slate-700">Impressions</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded bg-emerald-600" />
-                  <span className="text-slate-700">Clics Chariow</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded bg-purple-500" />
-                  <span className="text-slate-700">Commentaires</span>
-                </div>
-              </div>
-            </div>
+              {/* Dynamic Chart Area */}
+              <div className="pt-4">
+                <div className="grid grid-cols-7 gap-2 sm:gap-4 h-52 items-end pb-2 border-b border-slate-200">
+                  {last7Days.map((item, idx) => {
+                    const value = 
+                      activeMetric === 'impressions' ? item.views :
+                      activeMetric === 'clicks' ? item.clicks :
+                      activeMetric === 'ctr' ? item.ctr :
+                      activeMetric === 'purchases' ? item.purchases :
+                      activeMetric === 'comments' ? item.comments :
+                      item.likes;
 
-            {/* Custom Bar Graph */}
-            <div className="pt-4">
-              <div className="grid grid-cols-7 gap-2 sm:gap-4 h-44 items-end pb-2 border-b border-slate-200">
-                {last7Days.map((item, idx) => {
-                  const viewHeight = Math.max(8, Math.round((item.views / maxDailyViews) * 100));
-                  const clickHeight = Math.max(4, Math.round((item.clicks / maxDailyViews) * 100));
-                  const commHeight = Math.max(4, Math.round((item.comments / maxDailyViews) * 100));
+                    // Calculate height percentage
+                    const maxVal = Math.max(...last7Days.map((d) => 
+                      activeMetric === 'impressions' ? d.views :
+                      activeMetric === 'clicks' ? d.clicks :
+                      activeMetric === 'ctr' ? d.ctr :
+                      activeMetric === 'purchases' ? d.purchases :
+                      activeMetric === 'comments' ? d.comments :
+                      d.likes
+                    ), 5);
 
-                  return (
-                    <div key={idx} className="flex flex-col items-center gap-1 h-full justify-end">
-                      <div className="w-full flex items-end justify-center gap-1 h-36">
-                        {/* Views Bar */}
-                        <div
-                          style={{ height: `${viewHeight}%` }}
-                          className="w-1/3 bg-amber-400 hover:bg-amber-500 rounded-t transition-all group relative"
-                        >
-                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-slate-900 text-white text-[9px] rounded font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                            {item.views} vues
+                    const barHeight = Math.max(5, Math.round((value / maxVal) * 100));
+
+                    // Generate metric color classes
+                    let barBg = 'bg-slate-400 hover:bg-slate-500';
+                    if (activeMetric === 'impressions') { barBg = 'bg-amber-400 hover:bg-amber-500'; }
+                    else if (activeMetric === 'clicks') { barBg = 'bg-emerald-600 hover:bg-emerald-500'; }
+                    else if (activeMetric === 'ctr') { barBg = 'bg-teal-500 hover:bg-teal-600'; }
+                    else if (activeMetric === 'purchases') { barBg = 'bg-purple-600 hover:bg-purple-500'; }
+                    else if (activeMetric === 'comments') { barBg = 'bg-indigo-600 hover:bg-indigo-500'; }
+                    else if (activeMetric === 'likes') { barBg = 'bg-rose-500 hover:bg-rose-600'; }
+
+                    return (
+                      <div key={idx} className="flex flex-col items-center gap-2 h-full justify-end">
+                        {/* Daily Metric Value label above the bar */}
+                        <span className="text-[10px] sm:text-xs font-black text-slate-900 leading-none">
+                          {value}{activeMetric === 'ctr' ? '%' : ''}
+                        </span>
+
+                        <div className="w-full flex items-end justify-center h-36">
+                          <div
+                            style={{ height: `${barHeight}%` }}
+                            className={`w-10/12 sm:w-8/12 rounded-t-lg transition-all duration-300 relative group cursor-pointer shadow-2xs ${barBg}`}
+                          >
+                            {/* Rich Hover Tooltip */}
+                            <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-950 text-white text-[10px] rounded-lg font-black opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30 shadow-md">
+                              <span className="block font-extrabold">{item.dateLabel}</span>
+                              <span className="block text-[9px] text-amber-300 font-bold">
+                                {value} {metricConfigs[activeMetric].unit}
+                              </span>
+                            </div>
                           </div>
                         </div>
-
-                        {/* Clicks Bar */}
-                        <div
-                          style={{ height: `${clickHeight}%` }}
-                          className="w-1/3 bg-emerald-600 hover:bg-emerald-500 rounded-t transition-all group relative"
-                        >
-                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-emerald-950 text-white text-[9px] rounded font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                            {item.clicks} clics
-                          </div>
-                        </div>
-
-                        {/* Comments Bar */}
-                        <div
-                          style={{ height: `${commHeight}%` }}
-                          className="w-1/3 bg-purple-500 hover:bg-purple-600 rounded-t transition-all group relative"
-                        >
-                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-purple-950 text-white text-[9px] rounded font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                            {item.comments} avis
-                          </div>
-                        </div>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                          {item.day}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-600 uppercase">
-                        {item.day}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          </Card>
+
+              {/* Advanced Tip */}
+              <div className={`p-4 rounded-2xl border flex items-start gap-2.5 ${metricConfigs[activeMetric].bgClass} ${metricConfigs[activeMetric].accentBorder} ${metricConfigs[activeMetric].textColor}`}>
+                <Sparkles className="w-4 h-4 mt-0.5 shrink-0" />
+                <div className="text-xs font-bold leading-relaxed">
+                  {metricConfigs[activeMetric].tip}
+                </div>
+              </div>
+            </Card>
+          ) : (
+            /* DEFAULT FREE VIEW */
+            <Card className="p-5 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                <div>
+                  <h2 className="text-sm font-black text-slate-950 uppercase tracking-wider flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-amber-600" />
+                    <span>Activité & Engagement des 7 Derniers Jours</span>
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-700 mt-0.5">
+                    Comparatif quotidien entre les impressions, les clics sortants Chariow et les avis
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4 text-xs font-bold">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded bg-amber-500" />
+                    <span className="text-slate-700">Impressions</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded bg-emerald-600" />
+                    <span className="text-slate-700">Clics Chariow</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded bg-purple-500" />
+                    <span className="text-slate-700">Commentaires</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom Bar Graph */}
+              <div className="pt-4">
+                <div className="grid grid-cols-7 gap-2 sm:gap-4 h-44 items-end pb-2 border-b border-slate-200">
+                  {last7Days.map((item, idx) => {
+                    const viewHeight = Math.max(8, Math.round((item.views / maxDailyViews) * 100));
+                    const clickHeight = Math.max(4, Math.round((item.clicks / maxDailyViews) * 100));
+                    const commHeight = Math.max(4, Math.round((item.comments / maxDailyViews) * 100));
+
+                    return (
+                      <div key={idx} className="flex flex-col items-center gap-1 h-full justify-end">
+                        <div className="w-full flex items-end justify-center gap-1 h-36">
+                          {/* Views Bar */}
+                          <div
+                            style={{ height: `${viewHeight}%` }}
+                            className="w-1/3 bg-amber-400 hover:bg-amber-500 rounded-t transition-all group relative"
+                          >
+                            <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-slate-900 text-white text-[9px] rounded font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                              {item.views} vues
+                            </div>
+                          </div>
+
+                          {/* Clicks Bar */}
+                          <div
+                            style={{ height: `${clickHeight}%` }}
+                            className="w-1/3 bg-emerald-600 hover:bg-emerald-500 rounded-t transition-all group relative"
+                          >
+                            <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-emerald-950 text-white text-[9px] rounded font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                              {item.clicks} clics
+                            </div>
+                          </div>
+
+                          {/* Comments Bar */}
+                          <div
+                            style={{ height: `${commHeight}%` }}
+                            className="w-1/3 bg-purple-500 hover:bg-purple-600 rounded-t transition-all group relative"
+                          >
+                            <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-purple-950 text-white text-[9px] rounded font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                              {item.comments} avis
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-600 uppercase">
+                          {item.day}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Breakdown Tables Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

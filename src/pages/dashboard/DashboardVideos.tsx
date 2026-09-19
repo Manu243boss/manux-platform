@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Video as VideoIcon,
   Plus,
@@ -23,6 +23,7 @@ import { SeoHead } from '../../components/ui/SeoHead';
 import { ChariowConnector } from '../../services/chariow';
 
 export const DashboardVideos: React.FC = () => {
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [videos, setVideos] = useState<VideoType[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -177,7 +178,7 @@ export const DashboardVideos: React.FC = () => {
         <Button
           variant="chariow"
           size="sm"
-          onClick={() => setShowAddModal(true)}
+          onClick={() => navigate('/dashboard/products?openModal=true')}
           leftIcon={<Plus className="w-3.5 h-3.5" />}
         >
           Ajouter une vidéo démo
@@ -271,7 +272,7 @@ export const DashboardVideos: React.FC = () => {
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Ajoutez une vidéo YouTube non répertoriée ou publique pour démontrer vos produits et décupler vos ventes.
           </p>
-          <Button variant="chariow" size="sm" onClick={() => setShowAddModal(true)}>
+          <Button variant="chariow" size="sm" onClick={() => navigate('/dashboard/products?openModal=true')}>
             Ajouter ma première vidéo
           </Button>
         </Card>

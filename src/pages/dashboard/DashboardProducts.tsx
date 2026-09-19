@@ -155,6 +155,14 @@ export const DashboardProducts: React.FC = () => {
     setShowModal(true);
   };
 
+  useEffect(() => {
+    if (!loading && searchParams.get('openModal') === 'true') {
+      openAddModal();
+      searchParams.delete('openModal');
+      setSearchParams(searchParams);
+    }
+  }, [loading, searchParams]);
+
   const openEditModal = (prod: Product) => {
     setEditingProductId(prod.id);
     setTitle(prod.title);

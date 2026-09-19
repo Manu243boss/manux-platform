@@ -329,11 +329,20 @@ export const ProductComments: React.FC<ProductCommentsProps> = ({ productId, cre
     );
 
     // If real UUID, try updating in Supabase
-    if (!commentId.startsWith('prod_')) {
+    if (!commentId.startsWith('prod_') && !commentId.startsWith('temp_')) {
       try {
-        await supabase.rpc('increment_comment_likes', { comment_id: commentId });
-      } catch {
-        // Fallback
+        // Use our new toggle_comment_like which is universal and handles both likes and unlikes
+        const { error } = await supabase.rpc('toggle_comment_like', {
+          comment_id: commentId,
+          is_unlike: isCurrentlyLiked, // If it was already liked, clicking again unlikes it
+        });
+
+        // Backward compatibility fallback for old database configurations (only for increments)
+        if (error && !isCurrentlyLiked) {
+          await supabase.rpc('increment_comment_likes', { comment_id: commentId });
+        }
+      } catch (err) {
+        console.warn('[ManuX Comments] Like sync error:', err);
       }
     }
   };

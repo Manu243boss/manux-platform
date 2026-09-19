@@ -276,12 +276,20 @@ export const TikTokComments: React.FC<TikTokCommentsProps> = ({ videoId, creator
     setComments(updated);
     localStorage.setItem(localCacheKey, JSON.stringify(updated));
 
-    // Call Supabase RPC if liking
-    if (newLikedState) {
+    // Call Supabase RPC to persist like or unlike state
+    if (!commentId.startsWith('temp_')) {
       try {
-        await supabase.rpc('increment_comment_likes', { comment_id: commentId });
-      } catch {
-        // Fallback
+        const { error } = await supabase.rpc('toggle_comment_like', {
+          comment_id: commentId,
+          is_unlike: !newLikedState, // If newLikedState is false, we are unliking
+        });
+
+        // Backward compatibility fallback for increments only
+        if (error && newLikedState) {
+          await supabase.rpc('increment_comment_likes', { comment_id: commentId });
+        }
+      } catch (err) {
+        console.warn('[ManuX Video Comments] Like sync error:', err);
       }
     }
   };

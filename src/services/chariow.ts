@@ -48,12 +48,54 @@ function normalizeRawItem(raw: any, storeUrl?: string): ChariowProductNormalized
   const storeBasedUrl = cleanStoreUrl && productId ? `${cleanStoreUrl}/${productId}` : '';
   const finalUrl = storeBasedUrl || raw.url || raw.checkout_url || raw.permalink || (productId ? `https://chariow.com/p/${productId}` : '');
 
+  // Robust Price Detection
+  let priceVal = 0;
+  if (typeof raw.price === 'number') {
+    priceVal = raw.price;
+  } else if (raw.price && typeof raw.price === 'object') {
+    const amt = raw.price.amount ?? raw.price.value ?? raw.price.price ?? raw.price.price_amount;
+    priceVal = typeof amt === 'number' ? amt : parseFloat(amt) || 0;
+  } else if (typeof raw.amount === 'number') {
+    priceVal = raw.amount;
+  } else if (raw.price_cents && typeof raw.price_cents === 'number') {
+    priceVal = raw.price_cents / 100;
+  } else if (raw.amount_cents && typeof raw.amount_cents === 'number') {
+    priceVal = raw.amount_cents / 100;
+  } else if (raw.price_amount) {
+    priceVal = parseFloat(raw.price_amount) || 0;
+  } else if (raw.price) {
+    priceVal = parseFloat(String(raw.price)) || 0;
+  } else if (raw.amount) {
+    priceVal = parseFloat(String(raw.amount)) || 0;
+  }
+
+  // Robust Currency Detection
+  let currencyVal = 'XOF'; // Default to West African CFA Franc
+  if (raw.currency && typeof raw.currency === 'string') {
+    currencyVal = raw.currency;
+  } else if (raw.price && typeof raw.price === 'object' && raw.price.currency) {
+    currencyVal = String(raw.price.currency);
+  } else if (raw.currency_code && typeof raw.currency_code === 'string') {
+    currencyVal = raw.currency_code;
+  } else if (raw.price_currency && typeof raw.price_currency === 'string') {
+    currencyVal = raw.price_currency;
+  } else if (raw.currency_symbol && typeof raw.currency_symbol === 'string') {
+    const symbol = raw.currency_symbol.toUpperCase();
+    if (symbol.includes('FCFA') || symbol.includes('F CFA') || symbol.includes('CFA') || symbol.includes('XOF') || symbol.includes('XAF')) {
+      currencyVal = 'XOF';
+    } else if (symbol.includes('$') || symbol.includes('USD')) {
+      currencyVal = 'USD';
+    } else if (symbol.includes('€') || symbol.includes('EUR')) {
+      currencyVal = 'EUR';
+    }
+  }
+
   return {
     id: productId,
     name: raw.name || raw.title || raw.product_name || 'Produit Chariow',
     description: raw.description || raw.short_description || '',
-    price: typeof raw.price === 'number' ? raw.price : parseFloat(raw.price) || 0,
-    currency: raw.currency || 'USD',
+    price: priceVal,
+    currency: currencyVal,
     pictures: {
       cover: cover,
       thumbnail: thumbnail,
