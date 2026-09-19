@@ -88,38 +88,56 @@ export const NotificationBell: React.FC = () => {
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-200 py-3 z-50 divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-4 pb-2.5 flex items-center justify-between">
+          <div className="fixed inset-0 z-40 bg-black/20 sm:bg-transparent backdrop-blur-xs sm:backdrop-blur-none" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-x-2 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 w-auto sm:w-96 max-w-sm sm:max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200/90 py-3 z-50 divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-150 max-h-[80vh] flex flex-col">
+            <div className="px-4 pb-2.5 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
-                <h3 className="text-xs font-extrabold text-slate-900 font-serif-heading">
-                  Notifications ManuX
+                <div className="w-6 h-6 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center font-black text-[10px] shadow-2xs">
+                  MX
+                </div>
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                  Notifications
                 </h3>
                 {unreadCount > 0 && (
-                  <span className="px-2 py-0.5 bg-amber-100 text-amber-900 font-black text-[10px] rounded-full">
-                    {unreadCount} non lue(s)
+                  <span className="px-2 py-0.5 bg-amber-100 text-amber-900 font-bold text-[10px] rounded-full">
+                    {unreadCount}
                   </span>
                 )}
               </div>
-              {unreadCount > 0 && (
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAll}
+                    className="text-[11px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Tout marquer lu</span>
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={handleMarkAll}
-                  className="text-[11px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 transition-colors cursor-pointer"
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 rounded-full text-slate-400 hover:text-slate-800 hover:bg-slate-100"
+                  aria-label="Fermer"
                 >
-                  <CheckCheck className="w-3.5 h-3.5" />
-                  <span>Tout marquer lu</span>
+                  ✕
                 </button>
-              )}
+              </div>
             </div>
 
-            <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
-              {notifications.length === 0 ? (
-                <div className="py-10 text-center text-slate-400 text-xs space-y-1">
-                  <Bell className="w-6 h-6 mx-auto text-slate-300" />
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-50 overscroll-contain">
+              {loading ? (
+                <div className="py-8 text-center text-slate-400 text-xs">
+                  <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <span>Chargement des notifications...</span>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="py-10 text-center text-slate-400 text-xs space-y-1.5 px-4">
+                  <Bell className="w-8 h-8 mx-auto text-slate-300" />
                   <p className="font-bold text-slate-700">Aucune notification pour le moment.</p>
-                  <p className="text-[11px] text-slate-400">
-                    Vos alertes de commentaires, paiements et paliers de vues apparaîtront ici.
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Vos alertes de commentaires, commandes Chariow et paliers de vues apparaîtront ici.
                   </p>
                 </div>
               ) : (
@@ -127,23 +145,23 @@ export const NotificationBell: React.FC = () => {
                   <div
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
-                    className={`p-3.5 transition-colors cursor-pointer flex items-start gap-3 text-xs ${
-                      notif.is_read ? 'bg-white hover:bg-slate-50' : 'bg-amber-50/50 hover:bg-amber-50/80 font-semibold'
+                    className={`p-3 sm:p-3.5 transition-colors cursor-pointer flex items-start gap-3 text-xs ${
+                      notif.is_read ? 'bg-white hover:bg-slate-50' : 'bg-amber-50/40 hover:bg-amber-50/70 font-semibold'
                     }`}
                   >
-                    <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                    <div className="w-8 h-8 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
                       {getIconForType(notif.type)}
                     </div>
-                    <div className="flex-1 space-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-extrabold text-slate-900 text-xs">
+                    <div className="flex-1 space-y-0.5 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-extrabold text-slate-900 text-xs truncate">
                           {notif.title}
                         </span>
                         {!notif.is_read && (
                           <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                      <p className="text-[11px] text-slate-600 leading-relaxed break-words">
                         {notif.message}
                       </p>
                       <div className="text-[10px] text-slate-400 pt-1 flex items-center justify-between">
@@ -157,7 +175,7 @@ export const NotificationBell: React.FC = () => {
                         </span>
                         {notif.link && (
                           <span className="text-amber-600 font-bold inline-flex items-center gap-0.5">
-                            <span>Voir</span>
+                            <span>Ouvrir</span>
                             <ExternalLink className="w-2.5 h-2.5" />
                           </span>
                         )}
@@ -168,9 +186,9 @@ export const NotificationBell: React.FC = () => {
               )}
             </div>
 
-            <div className="px-4 pt-2.5 text-center">
+            <div className="px-4 pt-2.5 pb-1 text-center shrink-0">
               <span className="text-[10px] text-slate-400">
-                Synchronisation automatique Chariow & ManuX Pulse
+                Synchronisation en direct ManuX & Boutiques Chariow
               </span>
             </div>
           </div>

@@ -24,6 +24,43 @@ export async function getUserNotifications(userId: string): Promise<Notification
       console.warn('[NotificationService] Fetch error:', error.message);
       return [];
     }
+
+    // If user has no notifications yet, automatically seed useful initial onboarding notifications
+    if (!data || data.length === 0) {
+      const initialNotifications: Omit<NotificationItem, 'id' | 'created_at'>[] = [
+        {
+          user_id: userId,
+          title: '🎉 Bienvenue sur ManuX !',
+          message: 'Votre compte créateur est actif. Connectez votre boutique Chariow pour commencer à exposer vos produits.',
+          type: 'welcome',
+          link: '/dashboard/store',
+          is_read: false,
+        },
+        {
+          user_id: userId,
+          title: '⚡ Boostez votre visibilité',
+          message: 'Ajoutez une vidéo YouTube non répertoriée pour faire la démonstration concrète de votre produit.',
+          type: 'system',
+          link: '/dashboard/videos',
+          is_read: false,
+        },
+      ];
+
+      for (const item of initialNotifications) {
+        await createNotification(item.user_id, item.title, item.message, item.type, item.link);
+      }
+
+      // Re-fetch created notifications
+      const { data: refreshed } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      return refreshed || [];
+    }
+
     return data || [];
   } catch (err) {
     console.warn('[NotificationService] Fetch exception:', err);
