@@ -31,22 +31,22 @@ export const LoginPage: React.FC = () => {
       });
 
       if (error) {
-        // Clean error messages without technical jargon
+        // Clear error messages with exact cause for rapid diagnostic
         if (error.message.includes('Invalid login credentials')) {
           setErrorMsg('Adresse email ou mot de passe incorrect.');
         } else if (error.message.includes('Email not confirmed')) {
-          setErrorMsg('Votre adresse e-mail n\'a pas encore été confirmée. Veuillez vérifier votre boîte de réception.');
+          setErrorMsg("Votre adresse e-mail n'a pas encore été confirmée. Veuillez vérifier votre boîte de réception.");
         } else {
-          setErrorMsg('Impossible de se connecter. Veuillez vérifier vos identifiants.');
+          setErrorMsg(`Erreur de connexion : ${error.message}`);
         }
         return;
       }
-
+      
       if (data.session) {
         navigate('/dashboard');
       }
     } catch (err: any) {
-      setErrorMsg('Une erreur inattendue est survenue. Veuillez réessayer.');
+      setErrorMsg(`Une erreur est survenue : ${err?.message || 'Erreur de réseau'}`);
     } finally {
       setLoading(false);
     }

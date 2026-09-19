@@ -57,7 +57,7 @@ export const RegisterPage: React.FC = () => {
         if (error.message.includes('already registered') || error.message.includes('User already exists')) {
           setErrorMsg('Cette adresse email est déjà associée à un compte. Veuillez vous connecter.');
         } else {
-          setErrorMsg('Impossible de finaliser l\'inscription. Veuillez vérifier les informations saisies.');
+          setErrorMsg(`Erreur d'inscription : ${error.message}`);
         }
         return;
       }
