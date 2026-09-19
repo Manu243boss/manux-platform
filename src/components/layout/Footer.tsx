@@ -72,6 +72,12 @@ export const Footer: React.FC = () => {
             </h4>
             <ul className="space-y-2 text-xs lg:text-sm text-slate-600">
               <li>
+                <Link to="/guide" className="text-amber-600 font-bold hover:text-amber-700 transition-colors flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Guide ManuX + Chariow</span>
+                </Link>
+              </li>
+              <li>
                 <Link to="/about" className="hover:text-emerald-700 transition-colors">
                   À propos de ManuX
                 </Link>

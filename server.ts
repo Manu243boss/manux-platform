@@ -9,6 +9,20 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+// Enable CORS for API routes
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, x-chariow-key, x-store-url, x-chariow-signature, Accept'
+  );
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
 app.use(express.json());
 
 // -------------------------------------------------------------
@@ -862,4 +876,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Start standalone server unless executing inside Vercel serverless functions
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;

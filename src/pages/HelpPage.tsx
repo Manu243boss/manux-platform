@@ -39,6 +39,28 @@ export const HelpPage: React.FC = () => {
         </p>
       </div>
 
+      {/* Guide Banner */}
+      <div className="p-5 sm:p-6 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 text-xs font-black text-amber-900 uppercase tracking-wider">
+            <BookOpen className="w-4 h-4 text-amber-600" />
+            <span>Guide Officiel Créateurs</span>
+          </div>
+          <h3 className="text-sm sm:text-base font-bold text-slate-950">
+            Guide Complet : Vendre avec ManuX + Chariow & Comprendre l'Algorithme
+          </h3>
+          <p className="text-xs text-slate-600">
+            Découvrez comment maximiser vos ventes 24h/24 et propulser vos produits en page d'accueil.
+          </p>
+        </div>
+        <a
+          href="/guide"
+          className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs font-bold shrink-0 transition-colors shadow-2xs"
+        >
+          Consulter le Guide
+        </a>
+      </div>
+
       <div className="space-y-4">
         {faqs.map((faq, idx) => (
           <Card key={idx} className="p-5 space-y-2">

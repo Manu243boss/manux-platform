@@ -58,8 +58,9 @@ export const AppSidebar: React.FC = () => {
   ];
 
   const legalLinks = [
-    { label: 'À propos', path: '/about', icon: Info },
+    { label: 'Guide & Algorithme', path: '/guide', icon: Sparkles },
     { label: 'Centre d’aide', path: '/help', icon: HelpCircle },
+    { label: 'À propos', path: '/about', icon: Info },
     { label: 'Conditions & Légal', path: '/terms', icon: Shield },
   ];
 

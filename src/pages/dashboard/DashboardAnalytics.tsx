@@ -25,6 +25,8 @@ import {
   Download,
   Filter,
   CheckCircle2,
+  Heart,
+  MessageCircle,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
@@ -64,10 +66,12 @@ interface CreatorCommentItem {
   author_avatar?: string;
   created_at: string;
   likes_count: number;
+  is_creator_reply?: boolean;
   video_id?: string;
   product_id?: string;
   video_title?: string;
   product_title?: string;
+  type: 'product' | 'video';
 }
 
 export const DashboardAnalytics: React.FC = () => {
@@ -93,11 +97,12 @@ export const DashboardAnalytics: React.FC = () => {
   const [totalVideoViews, setTotalVideoViews] = useState(0);
   const [totalPurchases, setTotalPurchases] = useState(0);
 
-  // Breakdown tables
+  // Breakdown tables & comments metrics
   const [productsData, setProductsData] = useState<ProductAnalytics[]>([]);
   const [videosData, setVideosData] = useState<VideoAnalytics[]>([]);
   const [allEvents, setAllEvents] = useState<EventLog[]>([]);
   const [commentsData, setCommentsData] = useState<CreatorCommentItem[]>([]);
+  const [totalCommentLikes, setTotalCommentLikes] = useState(0);
   const [visibleEventsCount, setVisibleEventsCount] = useState<number>(5);
 
   const setTab = (tab: string) => {
@@ -110,17 +115,23 @@ export const DashboardAnalytics: React.FC = () => {
       if (force) setRefreshing(true);
       else setLoading(true);
 
-      // Fetch events for this creator with cache
+      // Fetch products and videos for this user
+      const [prodsRes, vidsRes] = await Promise.all([
+        supabase.from('products').select('id, title, slug').eq('user_id', user.id),
+        supabase.from('videos').select('id, title, slug').eq('user_id', user.id),
+      ]);
+
+      const prods = prodsRes.data || [];
+      const vids = vidsRes.data || [];
+      const prodIds = prods.map((p) => p.id);
+      const vidIds = vids.map((v) => v.id);
+      const pMap = new Map(prods.map((p) => [p.id, p.title]));
+      const vMap = new Map(vids.map((v) => [v.id, v.title]));
+
+      // Fetch events with cache
       const events = await CacheService.getOrFetch<EventLog[]>(
         CACHE_KEYS.USER_ANALYTICS(user.id),
         async () => {
-          const [prodsRes, vidsRes] = await Promise.all([
-            supabase.from('products').select('id, title, slug').eq('user_id', user.id),
-            supabase.from('videos').select('id, title, slug').eq('user_id', user.id),
-          ]);
-          const prodIds = (prodsRes.data || []).map((p) => p.id);
-          const vidIds = (vidsRes.data || []).map((v) => v.id);
-
           let query = supabase.from('analytics_events').select('*');
           if (prodIds.length > 0 || vidIds.length > 0) {
             const orConditions = [`creator_id.eq.${user.id}`];
@@ -186,78 +197,104 @@ export const DashboardAnalytics: React.FC = () => {
         setTotalPurchases(pch);
         setAllEvents(events);
 
-        // Fetch products details
-        const { data: prods } = await supabase
-          .from('products')
-          .select('id, title, slug')
-          .eq('user_id', user.id);
+        // Map products data
+        const mappedProds: ProductAnalytics[] = prods.map((p) => ({
+          id: p.id,
+          title: p.title,
+          views: prodViewsMap[p.id] || 0,
+          clicks: prodClicksMap[p.id] || 0,
+          purchases: prodPurchasesMap[p.id] || 0,
+        }));
+        mappedProds.sort((a, b) => b.views - a.views);
+        setProductsData(mappedProds);
 
-        if (prods) {
-          const mappedProds: ProductAnalytics[] = prods.map((p) => ({
-            id: p.id,
-            title: p.title,
-            views: prodViewsMap[p.id] || 0,
-            clicks: prodClicksMap[p.id] || 0,
-            purchases: prodPurchasesMap[p.id] || 0,
-          }));
-          mappedProds.sort((a, b) => b.views - a.views);
-          setProductsData(mappedProds);
-        }
+        // Map videos data
+        const mappedVids: VideoAnalytics[] = vids.map((v) => ({
+          id: v.id,
+          title: v.title,
+          slug: v.slug,
+          views: vidMap[v.id] || 0,
+        }));
+        mappedVids.sort((a, b) => b.views - a.views);
+        setVideosData(mappedVids);
 
-        // Fetch videos details
-        const { data: vids } = await supabase
-          .from('videos')
-          .select('id, title, slug')
-          .eq('user_id', user.id);
+        // Fetch comments across both 'comments' and 'product_comments' tables
+        const combinedComments: CreatorCommentItem[] = [];
 
-        if (vids) {
-          const mappedVids: VideoAnalytics[] = vids.map((v) => ({
-            id: v.id,
-            title: v.title,
-            slug: v.slug,
-            views: vidMap[v.id] || 0,
-          }));
-          mappedVids.sort((a, b) => b.views - a.views);
-          setVideosData(mappedVids);
-        }
-
-        // Fetch creator's feedback comments across products and videos
-        const pMap = new Map((prods || []).map((p) => [p.id, p.title]));
-        const vMap = new Map((vids || []).map((v) => [v.id, v.title]));
-        const prodIds = (prods || []).map((p) => p.id);
-        const vidIds = (vids || []).map((v) => v.id);
-
-        if (prodIds.length > 0 || vidIds.length > 0) {
+        // 1. Video comments
+        if (vidIds.length > 0) {
           try {
-            let cQuery = supabase.from('comments').select('*');
-            const cConditions: string[] = [];
-            if (prodIds.length > 0) cConditions.push(`product_id.in.(${prodIds.join(',')})`);
-            if (vidIds.length > 0) cConditions.push(`video_id.in.(${vidIds.join(',')})`);
-            cQuery = cQuery.or(cConditions.join(',')).order('created_at', { ascending: false }).limit(20);
+            const { data: vComms } = await supabase
+              .from('comments')
+              .select('*')
+              .in('video_id', vidIds)
+              .order('created_at', { ascending: false })
+              .limit(30);
 
-            const { data: comms } = await cQuery;
-            if (comms) {
-              const mappedComms: CreatorCommentItem[] = comms.map((c: any) => ({
-                id: c.id,
-                content: c.content,
-                author_name: c.author_name || 'Utilisateur',
-                author_avatar: c.author_avatar,
-                created_at: c.created_at,
-                likes_count: c.likes_count || 0,
-                video_id: c.video_id,
-                product_id: c.product_id,
-                video_title: c.video_id ? vMap.get(c.video_id) : undefined,
-                product_title: c.product_id ? pMap.get(c.product_id) : undefined,
-              }));
-              setCommentsData(mappedComms);
+            if (vComms) {
+              vComms.forEach((c: any) => {
+                combinedComments.push({
+                  id: c.id,
+                  content: c.content,
+                  author_name: c.author_name || 'Utilisateur ManuX',
+                  author_avatar: c.author_avatar,
+                  created_at: c.created_at,
+                  likes_count: c.likes_count || 0,
+                  is_creator_reply: Boolean(c.is_creator_reply),
+                  video_id: c.video_id,
+                  video_title: vMap.get(c.video_id),
+                  type: 'video',
+                });
+              });
             }
-          } catch (commErr) {
-            console.warn('[ManuX Comments fetch]', commErr);
+          } catch (err) {
+            console.debug('[ManuX Analytics] Video comments query notice:', err);
           }
         }
+
+        // 2. Product comments
+        if (prodIds.length > 0) {
+          try {
+            const { data: pComms } = await supabase
+              .from('product_comments')
+              .select('*')
+              .in('product_id', prodIds)
+              .order('created_at', { ascending: false })
+              .limit(30);
+
+            if (pComms) {
+              pComms.forEach((c: any) => {
+                combinedComments.push({
+                  id: c.id,
+                  content: c.content,
+                  author_name: c.author_name || 'Visiteur ManuX',
+                  author_avatar: c.author_avatar,
+                  created_at: c.created_at,
+                  likes_count: c.likes_count || 0,
+                  is_creator_reply: Boolean(c.is_creator_reply),
+                  product_id: c.product_id,
+                  product_title: pMap.get(c.product_id),
+                  type: 'product',
+                });
+              });
+            }
+          } catch (err) {
+            console.debug('[ManuX Analytics] Product comments query notice:', err);
+          }
+        }
+
+        // Sort descending by created_at
+        combinedComments.sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setCommentsData(combinedComments);
+
+        // Sum likes count
+        const totalLikes = combinedComments.reduce((acc, curr) => acc + (curr.likes_count || 0), 0);
+        setTotalCommentLikes(totalLikes);
       }
     } catch (err) {
-      console.error('[ManuX Analytics] Error:', err);
+      console.error('[ManuX Analytics] Error loading analytics:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -273,7 +310,7 @@ export const DashboardAnalytics: React.FC = () => {
   const ctr = totalImpressions > 0 ? ((totalChariowClicks / totalImpressions) * 100).toFixed(1) : '0.0';
   const conversionRate = totalChariowClicks > 0 ? ((totalPurchases / totalChariowClicks) * 100).toFixed(1) : '0.0';
 
-  // Real 7-day trend calculation
+  // Real 7-day trend calculation (Views, Clics, Commentaires & Likes)
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
@@ -283,15 +320,16 @@ export const DashboardAnalytics: React.FC = () => {
     const views = dayEvents.filter(
       (e) => e.event_type === 'product_view' || e.event_type === 'video_view' || e.event_type === 'creator_view'
     ).length;
+    const dayComments = commentsData.filter((c) => c.created_at?.startsWith(dateStr)).length;
     return {
       day: d.toLocaleDateString('fr-FR', { weekday: 'short' }),
       views,
       clicks,
+      comments: dayComments,
     };
   });
 
-  const maxDailyViews = Math.max(...last7Days.map((d) => d.views), 5);
-
+  const maxDailyViews = Math.max(...last7Days.map((d) => Math.max(d.views, d.clicks, d.comments)), 5);
   const displayedEvents = allEvents.slice(0, visibleEventsCount);
 
   return (
@@ -325,7 +363,7 @@ export const DashboardAnalytics: React.FC = () => {
             )}
           </div>
           <p className="text-xs sm:text-sm font-semibold text-slate-700 mt-1">
-            Données réelles enregistrées sur vos boutiques Chariow, vidéos de démo et interactions visiteurs.
+            Données réelles enregistrées sur vos boutiques Chariow, vidéos de démo, commentaires et interactions visiteurs.
           </p>
         </div>
 
@@ -336,7 +374,7 @@ export const DashboardAnalytics: React.FC = () => {
               variant="primary"
               size="sm"
               onClick={() => {
-                setSelectedMetric('Graphiques Avancés & Entonnoir Chariow');
+                setSelectedMetric('Graphiques Avancés & Analytics Commentaires');
                 setUpgradeModalOpen(true);
               }}
               className="text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 border-0"
@@ -416,51 +454,60 @@ export const DashboardAnalytics: React.FC = () => {
         </button>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+      {/* KPI Cards Grid (Including Comments & Likes) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
         <Card className="p-4 sm:p-5 space-y-2">
           <div className="flex items-center justify-between text-slate-800">
-            <span className="text-[11px] font-black uppercase tracking-wider">Impressions</span>
-            <Eye className="w-4 h-4" />
+            <span className="text-[10px] font-black uppercase tracking-wider">Impressions</span>
+            <Eye className="w-3.5 h-3.5" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-950">{totalImpressions}</div>
-          <p className="text-[11px] font-bold text-slate-700">Vues totales catalogue</p>
+          <div className="text-xl sm:text-2xl font-black text-slate-950">{totalImpressions}</div>
+          <p className="text-[10px] font-bold text-slate-600">Vues catalogue</p>
         </Card>
 
         <Card className="p-4 sm:p-5 space-y-2">
           <div className="flex items-center justify-between text-slate-800">
-            <span className="text-[11px] font-black uppercase tracking-wider">Clics Chariow</span>
-            <MousePointerClick className="w-4 h-4 text-emerald-700" />
+            <span className="text-[10px] font-black uppercase tracking-wider">Clics Chariow</span>
+            <MousePointerClick className="w-3.5 h-3.5 text-emerald-700" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-emerald-950">{totalChariowClicks}</div>
-          <p className="text-[11px] font-bold text-slate-700">Redirections boutique</p>
+          <div className="text-xl sm:text-2xl font-black text-emerald-950">{totalChariowClicks}</div>
+          <p className="text-[10px] font-bold text-slate-600">Redirections</p>
         </Card>
 
         <Card className="p-4 sm:p-5 space-y-2">
           <div className="flex items-center justify-between text-slate-800">
-            <span className="text-[11px] font-black uppercase tracking-wider">Taux de Clic (CTR)</span>
-            <Percent className="w-4 h-4 text-amber-800" />
+            <span className="text-[10px] font-black uppercase tracking-wider">CTR</span>
+            <Percent className="w-3.5 h-3.5 text-amber-800" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-950">{ctr}%</div>
-          <p className="text-[11px] font-bold text-slate-700">Taux clics/impressions</p>
+          <div className="text-xl sm:text-2xl font-black text-slate-950">{ctr}%</div>
+          <p className="text-[10px] font-bold text-slate-600">Clics / Vues</p>
         </Card>
 
         <Card className="p-4 sm:p-5 space-y-2">
           <div className="flex items-center justify-between text-slate-800">
-            <span className="text-[11px] font-black uppercase tracking-wider">Achats / Webhooks</span>
-            <ShoppingBag className="w-4 h-4 text-purple-700" />
+            <span className="text-[10px] font-black uppercase tracking-wider">Achats Chariow</span>
+            <ShoppingBag className="w-3.5 h-3.5 text-purple-700" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-950">{totalPurchases}</div>
-          <p className="text-[11px] font-bold text-slate-700">Intentions d'achat</p>
+          <div className="text-xl sm:text-2xl font-black text-slate-950">{totalPurchases}</div>
+          <p className="text-[10px] font-bold text-slate-600">Intentions d'achat</p>
         </Card>
 
-        <Card className="p-4 sm:p-5 space-y-2 col-span-2 lg:col-span-1">
+        <Card className="p-4 sm:p-5 space-y-2">
           <div className="flex items-center justify-between text-slate-800">
-            <span className="text-[11px] font-black uppercase tracking-wider">Conversion (CR)</span>
-            <TrendingUp className="w-4 h-4 text-emerald-700" />
+            <span className="text-[10px] font-black uppercase tracking-wider">Commentaires</span>
+            <MessageCircle className="w-3.5 h-3.5 text-purple-600" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-emerald-950">{conversionRate}%</div>
-          <p className="text-[11px] font-bold text-slate-700">Achats / Clics Chariow</p>
+          <div className="text-xl sm:text-2xl font-black text-purple-950">{commentsData.length}</div>
+          <p className="text-[10px] font-bold text-slate-600">Avis reçus</p>
+        </Card>
+
+        <Card className="p-4 sm:p-5 space-y-2">
+          <div className="flex items-center justify-between text-slate-800">
+            <span className="text-[10px] font-black uppercase tracking-wider">Likes Avis</span>
+            <Heart className="w-3.5 h-3.5 text-rose-600" />
+          </div>
+          <div className="text-xl sm:text-2xl font-black text-rose-950">{totalCommentLikes}</div>
+          <p className="text-[10px] font-bold text-slate-600">J'aime reçus</p>
         </Card>
       </div>
 
@@ -473,10 +520,10 @@ export const DashboardAnalytics: React.FC = () => {
               <div>
                 <h2 className="text-sm font-black text-slate-950 uppercase tracking-wider flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-amber-600" />
-                  <span>Activité Réelle des 7 Derniers Jours</span>
+                  <span>Activité & Engagement des 7 Derniers Jours</span>
                 </h2>
                 <p className="text-xs font-semibold text-slate-700 mt-0.5">
-                  Comparatif quotidien entre les impressions de vos fiches et les clics sortants vers Chariow
+                  Comparatif quotidien entre les impressions, les clics sortants Chariow et les avis
                 </p>
               </div>
 
@@ -489,6 +536,10 @@ export const DashboardAnalytics: React.FC = () => {
                   <span className="w-3 h-3 rounded bg-emerald-600" />
                   <span className="text-slate-700">Clics Chariow</span>
                 </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-purple-500" />
+                  <span className="text-slate-700">Commentaires</span>
+                </div>
               </div>
             </div>
 
@@ -498,31 +549,42 @@ export const DashboardAnalytics: React.FC = () => {
                 {last7Days.map((item, idx) => {
                   const viewHeight = Math.max(8, Math.round((item.views / maxDailyViews) * 100));
                   const clickHeight = Math.max(4, Math.round((item.clicks / maxDailyViews) * 100));
+                  const commHeight = Math.max(4, Math.round((item.comments / maxDailyViews) * 100));
 
                   return (
-                    <div key={idx} className="flex flex-col items-center h-full justify-end group">
-                      <div className="w-full flex items-end justify-center gap-1 sm:gap-1.5 h-full">
-                        {/* Impressions Bar */}
+                    <div key={idx} className="flex flex-col items-center gap-1 h-full justify-end">
+                      <div className="w-full flex items-end justify-center gap-1 h-36">
+                        {/* Views Bar */}
                         <div
-                          className="w-1/2 max-w-[20px] bg-amber-400 group-hover:bg-amber-500 rounded-t-lg transition-all duration-300 relative"
                           style={{ height: `${viewHeight}%` }}
+                          className="w-1/3 bg-amber-400 hover:bg-amber-500 rounded-t transition-all group relative"
                         >
-                          <span className="opacity-0 group-hover:opacity-100 absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black bg-slate-900 text-white px-1 py-0.5 rounded transition-opacity pointer-events-none whitespace-nowrap">
+                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-slate-900 text-white text-[9px] rounded font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {item.views} vues
-                          </span>
+                          </div>
                         </div>
 
                         {/* Clicks Bar */}
                         <div
-                          className="w-1/2 max-w-[20px] bg-emerald-600 group-hover:bg-emerald-700 rounded-t-lg transition-all duration-300 relative"
                           style={{ height: `${clickHeight}%` }}
+                          className="w-1/3 bg-emerald-600 hover:bg-emerald-500 rounded-t transition-all group relative"
                         >
-                          <span className="opacity-0 group-hover:opacity-100 absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black bg-emerald-950 text-white px-1 py-0.5 rounded transition-opacity pointer-events-none whitespace-nowrap">
+                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-emerald-950 text-white text-[9px] rounded font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {item.clicks} clics
-                          </span>
+                          </div>
+                        </div>
+
+                        {/* Comments Bar */}
+                        <div
+                          style={{ height: `${commHeight}%` }}
+                          className="w-1/3 bg-purple-500 hover:bg-purple-600 rounded-t transition-all group relative"
+                        >
+                          <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-purple-950 text-white text-[9px] rounded font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                            {item.comments} avis
+                          </div>
                         </div>
                       </div>
-                      <span className="text-[11px] font-bold text-slate-600 mt-2 uppercase">
+                      <span className="text-[10px] font-bold text-slate-600 uppercase">
                         {item.day}
                       </span>
                     </div>
@@ -532,55 +594,69 @@ export const DashboardAnalytics: React.FC = () => {
             </div>
           </Card>
 
-          {/* Product Performance Table */}
-          <Card className="p-5 sm:p-6 space-y-4">
-            <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-black text-slate-950 uppercase tracking-wider">
-                  Performance Détaillée par Produit
-                </h2>
-                <p className="text-xs font-semibold text-slate-700 mt-0.5">
-                  Vues, clics vers Chariow et conversion individuelle
-                </p>
+          {/* Breakdown Tables Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Products */}
+            <Card className="p-5 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-950 flex items-center gap-1.5">
+                  <Package className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Performance par Produit</span>
+                </h3>
+                <span className="text-[11px] font-bold text-slate-500">{productsData.length} produits</span>
               </div>
-            </div>
 
-            {productsData.length === 0 ? (
-              <div className="py-8 text-center text-xs font-bold text-slate-700">
-                Aucun produit configuré ou aucun événement enregistré.
+              {productsData.length === 0 ? (
+                <div className="py-6 text-center text-xs font-semibold text-slate-600">
+                  Aucun produit synchronisé depuis Chariow.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {productsData.map((p) => (
+                    <div
+                      key={p.id}
+                      className="p-2.5 rounded-xl bg-slate-50 flex items-center justify-between text-xs"
+                    >
+                      <span className="font-bold text-slate-900 truncate max-w-[180px]">{p.title}</span>
+                      <div className="flex items-center gap-3 font-bold text-slate-700">
+                        <span>{p.views} vues</span>
+                        <span className="text-emerald-700">{p.clicks} clics</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            {/* Top Videos */}
+            <Card className="p-5 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-950 flex items-center gap-1.5">
+                  <Video className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Performance par Vidéo Démo</span>
+                </h3>
+                <span className="text-[11px] font-bold text-slate-500">{videosData.length} vidéos</span>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-800 uppercase font-black tracking-wider text-[10px]">
-                      <th className="py-2.5 px-3">Produit</th>
-                      <th className="py-2.5 px-3 text-center">Vues</th>
-                      <th className="py-2.5 px-3 text-center">Clics Chariow</th>
-                      <th className="py-2.5 px-3 text-center">CTR</th>
-                      <th className="py-2.5 px-3 text-center">Achats</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-semibold text-slate-950">
-                    {productsData.map((p) => {
-                      const productCtr = p.views > 0 ? ((p.clicks / p.views) * 100).toFixed(1) : '0.0';
-                      return (
-                        <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-3 px-3 font-bold text-slate-950 truncate max-w-xs">
-                            {p.title}
-                          </td>
-                          <td className="py-3 px-3 text-center font-bold">{p.views}</td>
-                          <td className="py-3 px-3 text-center font-bold text-emerald-900">{p.clicks}</td>
-                          <td className="py-3 px-3 text-center font-black">{productCtr}%</td>
-                          <td className="py-3 px-3 text-center font-bold text-purple-900">{p.purchases}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
+
+              {videosData.length === 0 ? (
+                <div className="py-6 text-center text-xs font-semibold text-slate-600">
+                  Aucune démonstration vidéo publiée.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {videosData.map((v) => (
+                    <div
+                      key={v.id}
+                      className="p-2.5 rounded-xl bg-slate-50 flex items-center justify-between text-xs"
+                    >
+                      <span className="font-bold text-slate-900 truncate max-w-[180px]">{v.title}</span>
+                      <span className="font-black text-amber-900">{v.views} lectures</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
         </div>
       )}
 
@@ -590,13 +666,13 @@ export const DashboardAnalytics: React.FC = () => {
           {!isSubscribed && (
             <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-200/80 flex items-center justify-center font-bold shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-amber-200 flex items-center justify-center font-bold shrink-0">
                   <Crown className="w-5 h-5 text-amber-800" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black">L'analyse avancée de l'entonnoir Chariow est réservée aux abonnés</h4>
-                  <p className="text-xs text-amber-800 mt-0.5">
-                    Passez en Créateur ($2.50) ou Pro ($9) pour voir le taux de conversion étape par étape et optimiser vos ventes.
+                  <h4 className="text-sm font-black">Graphiques d'entonnoir avancés réservés aux abonnés</h4>
+                  <p className="text-xs text-amber-900 mt-0.5">
+                    Analysez les taux de passage entre impressions de vos fiches, clics Chariow et webhooks de vente.
                   </p>
                 </div>
               </div>
@@ -604,76 +680,44 @@ export const DashboardAnalytics: React.FC = () => {
                 type="button"
                 size="sm"
                 onClick={() => {
-                  setSelectedMetric('Entonnoir Chariow & Clics Achat');
+                  setSelectedMetric('Entonnoir de Conversion Chariow');
                   setUpgradeModalOpen(true);
                 }}
-                className="bg-amber-600 hover:bg-amber-500 text-white border-0 text-xs font-bold shrink-0"
+                className="bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold shrink-0"
               >
-                Passer en Pro ($9)
+                Passer en Créateur ($2.50)
               </Button>
             </div>
           )}
 
-          <Card className="p-5 sm:p-6 space-y-5">
-            <div className="border-b border-slate-200 pb-3">
-              <h2 className="text-sm font-black text-slate-950 uppercase tracking-wider flex items-center gap-2">
-                <MousePointerClick className="w-4 h-4 text-emerald-600" />
-                <span>Entonnoir de Conversion vers Chariow</span>
-              </h2>
-              <p className="text-xs font-semibold text-slate-700 mt-0.5">
-                Suivi de la progression du visiteur depuis la découverte jusqu'à l'achat sur Chariow
-              </p>
-            </div>
-
-            {/* Funnel visualization */}
-            <div className="space-y-3 pt-2">
-              <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-slate-900 text-white font-black text-xs flex items-center justify-center">1</span>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900">Visites & Impressions Fiches</div>
-                    <div className="text-[11px] text-slate-500">Visiteurs ayant découvert vos produits</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-lg font-black text-slate-950">{totalProductViews}</span>
-                  <span className="block text-[10px] text-slate-500">100% de la portée</span>
-                </div>
+          <Card className="p-5 sm:p-6 space-y-4">
+            <h2 className="text-sm font-black text-slate-950 uppercase tracking-wider">
+              Entonnoir de Trafic vers Chariow
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                <span className="text-[11px] font-bold text-slate-500 uppercase">1. Impressions Catalogue</span>
+                <div className="text-2xl font-black text-slate-950">{totalImpressions}</div>
+                <p className="text-[11px] text-slate-600">Visiteurs ayant vu vos fiches</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center">2</span>
-                  <div>
-                    <div className="text-xs font-bold text-emerald-950">Clics vers la Boutique Chariow</div>
-                    <div className="text-[11px] text-emerald-800">Visiteurs redirigés vers vos liens externes</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-lg font-black text-emerald-950">{totalChariowClicks}</span>
-                  <span className="block text-[10px] text-emerald-800">{ctr}% de conversion</span>
-                </div>
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-1">
+                <span className="text-[11px] font-bold text-emerald-900 uppercase">2. Clics Sortants Chariow</span>
+                <div className="text-2xl font-black text-emerald-950">{totalChariowClicks}</div>
+                <p className="text-[11px] text-emerald-800">Taux de clic : {ctr}%</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-purple-50 border border-purple-200 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-purple-600 text-white font-black text-xs flex items-center justify-center">3</span>
-                  <div>
-                    <div className="text-xs font-bold text-purple-950">Intentions d'Achat & Webhooks Chariow</div>
-                    <div className="text-[11px] text-purple-800">Achats confirmés et transactions webhook</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="text-lg font-black text-purple-950">{totalPurchases}</span>
-                  <span className="block text-[10px] text-purple-800">{conversionRate}% des clics</span>
-                </div>
+              <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 space-y-1">
+                <span className="text-[11px] font-bold text-purple-900 uppercase">3. Intentions / Webhooks</span>
+                <div className="text-2xl font-black text-purple-950">{totalPurchases}</div>
+                <p className="text-[11px] text-purple-800">Taux conversion : {conversionRate}%</p>
               </div>
             </div>
           </Card>
         </div>
       )}
 
-      {/* TAB 3: DÉMONSTRATIONS VIDÉO */}
+      {/* TAB 3: DEMONSTRATIONS VIDEO */}
       {activeTab === 'videos' && (
         <div className="space-y-6">
           <Card className="p-5 sm:p-6 space-y-4">
@@ -681,12 +725,15 @@ export const DashboardAnalytics: React.FC = () => {
               <div>
                 <h2 className="text-sm font-black text-slate-950 uppercase tracking-wider flex items-center gap-2">
                   <Video className="w-4 h-4 text-amber-600" />
-                  <span>Impact des Démonstrations Vidéo YouTube</span>
+                  <span>Statistiques des Démonstrations Vidéo</span>
                 </h2>
                 <p className="text-xs font-semibold text-slate-700 mt-0.5">
-                  Lectures démo et engagement vidéo par produit
+                  Vues réelles générées par vos lecteurs vidéo intégrés
                 </p>
               </div>
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-slate-100 text-slate-800">
+                {totalVideoViews} vue{totalVideoViews > 1 ? 's' : ''} au total
+              </span>
             </div>
 
             {videosData.length === 0 ? (
@@ -703,7 +750,7 @@ export const DashboardAnalytics: React.FC = () => {
                     </div>
                     <div className="text-right shrink-0">
                       <span className="text-base font-black text-slate-950">{v.views}</span>
-                      <span className="block text-[10px] text-slate-500 font-bold">lectures démo</span>
+                      <span className="block text-[10px] text-slate-500 font-bold">lectures</span>
                     </div>
                   </div>
                 ))}
@@ -713,7 +760,7 @@ export const DashboardAnalytics: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 4: COMMENTAIRES & AVIS */}
+      {/* TAB 4: COMMENTAIRES, AVIS & LIKES */}
       {activeTab === 'comments' && (
         <div className="space-y-6">
           {!isSubscribed && (
@@ -723,9 +770,9 @@ export const DashboardAnalytics: React.FC = () => {
                   <MessageSquare className="w-5 h-5 text-purple-800" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black">Gestion centralisée des commentaires réservée aux abonnés</h4>
+                  <h4 className="text-sm font-black">Gestion centralisée & graphiques de commentaires</h4>
                   <p className="text-xs text-purple-800 mt-0.5">
-                    Modérez vos commentaires, répondez avec badge officiel créateur et analysez les retours clients.
+                    Modérez vos avis, analysez les likes reçus et répondez avec le badge officiel créateur.
                   </p>
                 </div>
               </div>
@@ -733,7 +780,7 @@ export const DashboardAnalytics: React.FC = () => {
                 type="button"
                 size="sm"
                 onClick={() => {
-                  setSelectedMetric('Gestion et Modération des Commentaires');
+                  setSelectedMetric('Gestion et Analyse des Commentaires');
                   setUpgradeModalOpen(true);
                 }}
                 className="bg-purple-600 hover:bg-purple-500 text-white border-0 text-xs font-bold shrink-0"
@@ -743,6 +790,38 @@ export const DashboardAnalytics: React.FC = () => {
             </div>
           )}
 
+          {/* Comments & Likes Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="p-4 space-y-1 bg-purple-50/50 border-purple-200/80">
+              <span className="text-[10px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1">
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>Total Avis & Questions</span>
+              </span>
+              <div className="text-2xl font-black text-purple-950">{commentsData.length}</div>
+              <p className="text-[10px] text-purple-800">Sous vos produits et vidéos</p>
+            </Card>
+
+            <Card className="p-4 space-y-1 bg-rose-50/50 border-rose-200/80">
+              <span className="text-[10px] font-black uppercase tracking-wider text-rose-900 flex items-center gap-1">
+                <Heart className="w-3.5 h-3.5" />
+                <span>Total J'aime (Likes)</span>
+              </span>
+              <div className="text-2xl font-black text-rose-950">{totalCommentLikes}</div>
+              <p className="text-[10px] text-rose-800">Reçus sur les interactions</p>
+            </Card>
+
+            <Card className="p-4 space-y-1 bg-emerald-50/50 border-emerald-200/80">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Réponses Créateur</span>
+              </span>
+              <div className="text-2xl font-black text-emerald-950">
+                {commentsData.filter((c) => c.is_creator_reply).length}
+              </div>
+              <p className="text-[10px] text-emerald-800">Interactions directes avec vos clients</p>
+            </Card>
+          </div>
+
           <Card className="p-5 sm:p-6 space-y-4">
             <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
               <div>
@@ -751,7 +830,7 @@ export const DashboardAnalytics: React.FC = () => {
                   <span>Derniers Commentaires & Avis Reçus</span>
                 </h2>
                 <p className="text-xs font-semibold text-slate-700 mt-0.5">
-                  Commentaires déposés sur vos fiches produits et vidéos de démonstration
+                  Liste des avis déposés par vos visiteurs avec compteurs de mentions J'aime
                 </p>
               </div>
               <span className="text-xs font-black px-2.5 py-1 rounded-full bg-slate-100 text-slate-800">
@@ -780,15 +859,27 @@ export const DashboardAnalytics: React.FC = () => {
                           </div>
                         )}
                         <span className="text-xs font-bold text-slate-900">{c.author_name}</span>
+                        {c.is_creator_reply && (
+                          <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-extrabold text-[9px] uppercase tracking-wider border border-amber-300">
+                            Créateur
+                          </span>
+                        )}
                         {(c.product_title || c.video_title) && (
                           <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium truncate max-w-xs">
-                            sur {c.product_title || c.video_title}
+                            sur {c.product_title || c.video_title} ({c.type === 'product' ? 'Produit' : 'Vidéo'})
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] text-slate-400">
-                        {new Date(c.created_at).toLocaleDateString('fr-FR')}
-                      </span>
+
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-rose-600">
+                          <Heart className="w-3 h-3 fill-rose-600" />
+                          <span>{c.likes_count}</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {new Date(c.created_at).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
                     </div>
 
                     <p className="text-xs text-slate-700 leading-relaxed font-medium">
@@ -808,10 +899,10 @@ export const DashboardAnalytics: React.FC = () => {
           <div>
             <h2 className="text-sm font-black text-slate-950 uppercase tracking-wider flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-600" />
-              <span>Journal des Événements & Webhooks Récents</span>
+              <span>Journal des Événements & Interactions Récents</span>
             </h2>
             <p className="text-xs font-semibold text-slate-800 mt-0.5">
-              Historique des interactions capturées (clics Chariow, vues démo, webhooks)
+              Historique des interactions capturées en direct (clics Chariow, vues démo, webhooks)
             </p>
           </div>
           <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">

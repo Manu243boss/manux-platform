@@ -8,11 +8,19 @@ import { SupportedCurrency } from '../../types';
 interface CurrencyCountryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSelectCountry?: (country: CountryData) => void;
+  title?: string;
+  subtitle?: string;
+  selectedCountryCode?: string;
 }
 
 export const CurrencyCountryModal: React.FC<CurrencyCountryModalProps> = ({
   isOpen,
   onClose,
+  onSelectCountry,
+  title,
+  subtitle,
+  selectedCountryCode,
 }) => {
   const { currency, setCurrency } = useCurrency();
   const [countries, setCountries] = useState<CountryData[]>(DEFAULT_COUNTRIES);
@@ -86,10 +94,10 @@ export const CurrencyCountryModal: React.FC<CurrencyCountryModalProps> = ({
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-black text-slate-900 font-serif-heading">
-                  Pays & Devise d'affichage
+                  {title || "Pays & Devise d'affichage"}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Choisissez votre pays ou devise préférée pour visualiser les prix locaux
+                  {subtitle || "Choisissez votre pays ou devise préférée pour visualiser les prix locaux"}
                 </p>
               </div>
             </div>
@@ -158,7 +166,9 @@ export const CurrencyCountryModal: React.FC<CurrencyCountryModalProps> = ({
             </div>
           ) : (
             filteredCountries.map((c) => {
-              const isSelected = currency === c.currencyCode;
+              const isSelected = selectedCountryCode
+                ? selectedCountryCode.toLowerCase() === c.code.toLowerCase() || selectedCountryCode.toLowerCase() === c.name.toLowerCase()
+                : currency === c.currencyCode;
               const rateAgainstUSD = CurrencyService.convert(1, 'USD', c.currencyCode as any);
 
               return (
@@ -166,7 +176,11 @@ export const CurrencyCountryModal: React.FC<CurrencyCountryModalProps> = ({
                   key={`${c.code}-${c.currencyCode}`}
                   type="button"
                   onClick={() => {
-                    setCurrency(c.currencyCode as SupportedCurrency);
+                    if (onSelectCountry) {
+                      onSelectCountry(c);
+                    } else {
+                      setCurrency(c.currencyCode as SupportedCurrency);
+                    }
                     onClose();
                   }}
                   className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all ${

@@ -15,6 +15,7 @@ import {
   Video,
   ArrowRight,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -485,6 +486,14 @@ export const Navbar: React.FC = () => {
                         >
                           <Grid className="w-4 h-4 text-slate-400" />
                           <span>Paramètres & Profil</span>
+                        </a>
+
+                        <a
+                          href="/guide"
+                          className="flex items-center gap-2.5 px-3.5 py-1.5 text-xs font-medium text-amber-900 bg-amber-50/60 hover:bg-amber-100/70"
+                        >
+                          <Sparkles className="w-4 h-4 text-amber-600" />
+                          <span>Guide ManuX + Chariow</span>
                         </a>
                       </div>
 

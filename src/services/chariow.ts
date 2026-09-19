@@ -91,8 +91,26 @@ export class ChariowConnector {
         headers,
       });
 
-      if (response.ok) {
-        const json = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      let json: any = null;
+
+      if (contentType.includes('application/json')) {
+        try {
+          json = await response.json();
+        } catch {
+          json = null;
+        }
+      } else {
+        const textBody = await response.text();
+        if (textBody.includes('<!doctype') || textBody.includes('<html')) {
+          return {
+            success: false,
+            message: 'Le serveur backend /api/chariow/products n’est pas accessible ou renvoie du code HTML (vérifiez la configuration Vercel).',
+          };
+        }
+      }
+
+      if (response.ok && json) {
         if (json.warning === 'CHARIOW_API_KEY_NOT_CONFIGURED') {
           return {
             success: false,
@@ -169,8 +187,31 @@ export class ChariowConnector {
         headers,
       });
 
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
+      const contentType = response.headers.get('content-type') || '';
+      let resData: any = null;
+
+      if (contentType.includes('application/json')) {
+        try {
+          resData = await response.json();
+        } catch {
+          resData = null;
+        }
+      } else {
+        const textBody = await response.text();
+        if (textBody.includes('<!doctype') || textBody.includes('<html')) {
+          return {
+            products: [],
+            error: 'Le point d’accès /api/chariow/products renvoie une page HTML au lieu de JSON (Vérifiez le déploiement Vercel des fonctions API).',
+          };
+        }
+        try {
+          resData = JSON.parse(textBody);
+        } catch {
+          resData = null;
+        }
+      }
+
+      if (!response.ok || !resData) {
         if (response.status === 401) {
           return {
             products: [],
@@ -185,11 +226,10 @@ export class ChariowConnector {
         }
         return {
           products: [],
-          error: errJson?.message || `Erreur de connexion API Chariow (${response.status})`,
+          error: resData?.message || `Erreur de connexion API Chariow (${response.status})`,
         };
       }
 
-      const resData = await response.json();
       const products: ChariowProductNormalized[] = resData.data || [];
 
       return {

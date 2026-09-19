@@ -22,6 +22,9 @@ import { Button } from '../../components/ui/Button';
 import { SeoHead } from '../../components/ui/SeoHead';
 import { convertImageToWebP } from '../../lib/imageOptimization';
 import { useCurrency } from '../../context/CurrencyContext';
+import { CurrencyCountryModal } from '../../components/ui/CurrencyCountryModal';
+import { CountryData, DEFAULT_COUNTRIES } from '../../services/countries';
+import { SupportedCurrency } from '../../types';
 
 export const DashboardProfile: React.FC = () => {
   const { user, profile, refreshProfile, isEmailVerified, resendVerificationEmail } = useAuth();
@@ -40,6 +43,43 @@ export const DashboardProfile: React.FC = () => {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [preferredCurrency, setPreferredCurrency] = useState(currency || 'XOF');
   const [language, setLanguage] = useState('Français');
+  const [isCountryModalOpen, setIsCountryModalOpen] = useState(false);
+
+  // Match current country object for flag and currency display
+  const currentCountryData = React.useMemo(() => {
+    if (!country) return DEFAULT_COUNTRIES[0];
+    const match = DEFAULT_COUNTRIES.find(
+      (c) =>
+        c.name.toLowerCase() === country.toLowerCase() ||
+        c.code.toLowerCase() === country.toLowerCase() ||
+        c.officialName.toLowerCase() === country.toLowerCase()
+    );
+    return match || {
+      code: 'CI',
+      name: country,
+      officialName: country,
+      dialCode: '+225',
+      currencyCode: preferredCurrency || 'XOF',
+      currencyName: 'Franc CFA',
+      currencySymbol: 'CFA',
+      flagEmoji: '🌍',
+      region: 'Afrique',
+    };
+  }, [country, preferredCurrency]);
+
+  const handleSelectCountryFromModal = (selectedCountry: CountryData) => {
+    setCountry(selectedCountry.name);
+    setPreferredCurrency(selectedCountry.currencyCode);
+    setCurrency(selectedCountry.currencyCode as SupportedCurrency);
+
+    // If whatsapp/phone is empty, optionally prefill with country dial code
+    if (!whatsappNumber) {
+      setWhatsappNumber(`${selectedCountry.dialCode} `);
+    }
+    if (!phoneNumber) {
+      setPhoneNumber(`${selectedCountry.dialCode} `);
+    }
+  };
 
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -546,26 +586,52 @@ export const DashboardProfile: React.FC = () => {
             </div>
           </div>
 
-          {/* Location Fields */}
+          {/* Location Fields with Country & Currency Modal trigger */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700">Pays</label>
-              <input
-                type="text"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                placeholder="Ex: Côte d’Ivoire, Sénégal, RDC..."
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none focus:border-amber-400 shadow-2xs"
-              />
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Pays d'activité *</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsCountryModalOpen(true)}
+                  className="text-[11px] font-bold text-amber-900 hover:text-amber-700 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Changer</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsCountryModalOpen(true)}
+                className="w-full px-3 py-2 text-left rounded-xl border border-slate-200 hover:border-amber-400 bg-slate-50/70 hover:bg-amber-50/30 transition-all flex items-center justify-between shadow-2xs group cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5 truncate">
+                  <span className="text-xl leading-none shrink-0">{currentCountryData.flagEmoji}</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                    {country || currentCountryData.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-400 text-slate-950">
+                    {preferredCurrency || currentCountryData.currencyCode}
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-400">
+                    {currentCountryData.dialCode}
+                  </span>
+                </div>
+              </button>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700">Ville</label>
+              <label className="text-xs font-bold text-slate-700">Ville de résidence</label>
               <input
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="Ex: Abidjan, Dakar, Kinshasa..."
+                placeholder="Ex: Abidjan, Dakar, Kinshasa, Douala..."
                 className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none focus:border-amber-400 shadow-2xs"
               />
             </div>
@@ -674,6 +740,16 @@ export const DashboardProfile: React.FC = () => {
           </div>
         </form>
       </Card>
+
+      {/* Country & Currency Selection Modal */}
+      <CurrencyCountryModal
+        isOpen={isCountryModalOpen}
+        onClose={() => setIsCountryModalOpen(false)}
+        onSelectCountry={handleSelectCountryFromModal}
+        title="Choisir votre pays d'activité"
+        subtitle="Sélectionnez votre pays et votre devise pour votre vitrine et vos coordonnées"
+        selectedCountryCode={country}
+      />
     </div>
   );
 };

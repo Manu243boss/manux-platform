@@ -318,8 +318,8 @@ export const TikTokComments: React.FC<TikTokCommentsProps> = ({ videoId, creator
         </div>
       </div>
 
-      {/* Comments List */}
-      <div className="p-4 sm:p-6 space-y-5 max-h-[460px] overflow-y-auto scrollbar-thin">
+      {/* Comments List (Scrollable bounded container so card remains neat and does not push page down) */}
+      <div className="p-4 sm:p-6 space-y-4 max-h-[360px] sm:max-h-[400px] overflow-y-auto scrollbar-thin">
         {loading ? (
           <div className="py-8 text-center text-xs text-slate-400 animate-pulse">
             Chargement des discussions...
