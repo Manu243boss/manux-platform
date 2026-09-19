@@ -39,6 +39,27 @@
   display: none;
 }
 
+/* Custom Green Scrollbar for Sidebar and Containers */
+.scrollbar-green {
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 transparent;
+}
+.scrollbar-green::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.scrollbar-green::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+  border-radius: 9999px;
+}
+.scrollbar-green::-webkit-scrollbar-thumb {
+  background: #10b981; /* Vert ManuX */
+  border-radius: 9999px;
+}
+.scrollbar-green::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
 /* Scrollbar styles: Thin subtle green scrollbar on mobile, refined scrollbar on desktop */
 ::-webkit-scrollbar {
   width: 4px;

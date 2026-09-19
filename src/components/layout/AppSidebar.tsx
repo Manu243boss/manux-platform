@@ -86,8 +86,8 @@ export const AppSidebar: React.FC = () => {
           isOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
         } ${isCollapsed ? 'lg:w-20' : 'lg:w-64'}`}
       >
-        {/* Scrollable Inner Tools List */}
-        <div className="flex-1 overflow-y-auto py-3 px-2 space-y-3 scrollbar-none">
+        {/* Scrollable Inner Tools List with green scrollbar */}
+        <div className="flex-1 overflow-y-auto py-3 px-2 space-y-3 scrollbar-green">
           {/* SECTION 1: Navigation & Découverte */}
           <div className="space-y-1">
             {!isCollapsed ? (
