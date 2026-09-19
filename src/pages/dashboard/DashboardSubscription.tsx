@@ -574,10 +574,22 @@ export const DashboardSubscription: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-                  <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5">
-                    <Check className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Payé (Pulse)</span>
-                  </span>
+                  {tx.status === 'completed' || tx.status === 'success' ? (
+                    <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1.5 animate-pulse">
+                      <Check className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Payé (Pulse)</span>
+                    </span>
+                  ) : tx.status === 'pending' || tx.status === 'waiting' ? (
+                    <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-full bg-amber-100 text-amber-950 border border-amber-300 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-amber-600 animate-spin-slow" />
+                      <span>En attente (Caisse)</span>
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 text-[11px] font-black uppercase tracking-wider rounded-full bg-rose-100 text-rose-900 border border-rose-300 flex items-center gap-1.5">
+                      <X className="w-3.5 h-3.5 text-rose-700" />
+                      <span>Abandonné / Échoué</span>
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

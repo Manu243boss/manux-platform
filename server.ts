@@ -555,6 +555,27 @@ apiRouter.post('/payments/chariow/checkout', async (req: Request, res: Response)
       checkoutUrl = `${targetProduct.url}/checkout?${params.toString()}`;
     }
 
+    // Insert a pending transaction record so the user can see it in their dashboard immediately
+    try {
+      const pendingSaleId = `pending_${plan}_${Date.now()}`;
+      await supabaseServer.from('payment_transactions').insert({
+        user_id: user.id,
+        provider: 'chariow',
+        provider_sale_id: pendingSaleId,
+        product_id: productId,
+        plan,
+        amount: targetProduct.price || 0.00,
+        currency: targetProduct.currency || 'USD',
+        status: 'pending',
+        customer_email: userEmail,
+        created_at: new Date().toISOString(),
+        processed_at: new Date().toISOString()
+      });
+      console.log(`[CHARIOW CHECKOUT] Pending transaction recorded for user ${user.id} -> ${pendingSaleId}`);
+    } catch (insertErr) {
+      console.error('[CHARIOW CHECKOUT] Failed to insert pending transaction:', insertErr);
+    }
+
     return res.json({
       success: true,
       checkout_url: checkoutUrl,
