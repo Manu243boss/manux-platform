@@ -119,6 +119,9 @@ export const DashboardSubscription: React.FC = () => {
       if (!user) return;
       try {
         setLoading(true);
+        // Force refresh the auth profile to bypass 15-min cache and load fresh subscription status
+        await refreshProfile();
+
         const [subRes, txRes] = await Promise.all([
           supabase.from('subscriptions').select('*, plan:plans(*)').eq('user_id', user.id).maybeSingle(),
           supabase.from('payment_transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(50),

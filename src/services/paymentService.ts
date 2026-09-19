@@ -201,7 +201,7 @@ export function calculateSubscriptionCountdown(profile: any): SubscriptionCountd
 
   return {
     plan,
-    status: 'active',
+    status,
     daysRemaining,
     hoursRemaining,
     isExpiringSoon,
