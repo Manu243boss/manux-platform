@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://manux.xttools.site/sitemap.xml

@@ -1,0 +1,6 @@
+{
+  "name": "ManuX",
+  "description": "Plateforme africaine de découverte, démonstration et vente de produits Chariow.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
