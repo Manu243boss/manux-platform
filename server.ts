@@ -575,9 +575,9 @@ apiRouter.post('/payments/chariow/checkout', async (req: Request, res: Response)
 
 // -------------------------------------------------------------
 // 2. CHARIOW WEBHOOK / PULSE RECEIVER
-// GET & POST /api/webhooks/chariow
+// GET & POST /api/webhooks/chariow (supporte aussi /api/webhook/chariow)
 // -------------------------------------------------------------
-apiRouter.get('/webhooks/chariow', (_req: Request, res: Response) => {
+apiRouter.get(['/webhooks/chariow', '/webhook/chariow'], (_req: Request, res: Response) => {
   return res.json({
     status: 'online',
     message: 'Endpoint Webhook Chariow Pulse opérationnel. Chariow envoie ses requêtes en méthode POST lors des ventes.',
@@ -586,7 +586,7 @@ apiRouter.get('/webhooks/chariow', (_req: Request, res: Response) => {
   });
 });
 
-apiRouter.post('/webhooks/chariow', async (req: Request, res: Response) => {
+apiRouter.post(['/webhooks/chariow', '/webhook/chariow'], async (req: Request, res: Response) => {
   try {
     const payload = req.body || {};
     const signature = req.headers['x-chariow-signature'] as string | undefined;
@@ -722,43 +722,22 @@ apiRouter.post('/webhooks/chariow', async (req: Request, res: Response) => {
     if (isAbandoned) {
       console.log(`[CHARIOW WEBHOOK] Sale ${saleId} was abandoned (event: ${eventName}). Marking as abandoned.`);
       if (targetUserId) {
-        // Log transaction
-        await supabaseServer.from('payment_transactions').insert({
-          user_id: targetUserId,
-          provider: 'chariow',
-          provider_sale_id: saleId,
-          product_id: productId,
-          plan: mappedPlan,
-          amount: amount || expectedPrice,
-          currency: currency || 'USD',
-          status: 'abandoned',
-          customer_email: customerEmail || null,
-          license_key: licenseKey,
-          raw_payload: payload,
-          created_at: new Date().toISOString(),
-          processed_at: new Date().toISOString(),
+        // Appeler la fonction SECURITY DEFINER pour enregistrer l'abandon de façon sécurisée
+        const { data: dbResult, error: dbError } = await supabaseServer.rpc('handle_chariow_sale_abandoned', {
+          p_user_id: targetUserId,
+          p_plan: mappedPlan || 'free',
+          p_sale_id: saleId,
+          p_product_id: productId,
+          p_amount: amount || expectedPrice,
+          p_currency: currency || 'USD',
+          p_license_key: licenseKey,
+          p_customer_email: customerEmail || null,
+          p_payload: payload
         });
 
-        // Keep or demote user to free
-        await supabaseServer
-          .from('profiles')
-          .update({
-            subscription_plan: 'free',
-            subscription_status: 'abandoned',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', targetUserId);
-
-        // Update subscriptions table
-        await supabaseServer.from('subscriptions').upsert(
-          {
-            user_id: targetUserId,
-            plan_id: 'free',
-            status: 'abandoned',
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id' }
-        );
+        if (dbError) {
+          console.error('[CHARIOW WEBHOOK DB ABANDONED ERROR]:', dbError);
+        }
       }
 
       return res.status(200).json({
@@ -799,108 +778,50 @@ apiRouter.post('/webhooks/chariow', async (req: Request, res: Response) => {
       });
     }
 
-    // Idempotency: Check if sale was already recorded
-    const { data: existingTx } = await supabaseServer
-      .from('payment_transactions')
-      .select('id, plan, provider_sale_id')
-      .eq('provider', 'chariow')
-      .eq('provider_sale_id', saleId)
-      .maybeSingle();
-
-    if (existingTx) {
-      console.log(
-        `[CHARIOW WEBHOOK] Sale ${saleId} already processed (idempotent response).`
-      );
-      return res.status(200).json({
-        received: true,
-        activated: true,
-        idempotent: true,
-        sale_id: saleId,
-        plan: existingTx.plan,
-      });
-    }
-
     // Compute 30-day subscription cycle
     const now = new Date();
     const periodStart = now.toISOString();
     const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    // 1. Insert into payment_transactions
-    await supabaseServer.from('payment_transactions').insert({
-      user_id: targetUserId,
-      provider: 'chariow',
-      provider_sale_id: saleId,
-      product_id: productId,
-      plan: mappedPlan,
-      amount: amount || expectedPrice,
-      currency: currency || 'USD',
-      status: 'completed',
-      customer_email: customerEmail || null,
-      license_key: licenseKey,
-      raw_payload: payload,
-      created_at: periodStart,
-      processed_at: periodStart,
+    // Appeler la fonction SECURITY DEFINER sécurisée de Supabase pour contourner les limitations de RLS
+    const { data: dbResult, error: dbError } = await supabaseServer.rpc('handle_chariow_sale_success', {
+      p_user_id: targetUserId,
+      p_plan: mappedPlan,
+      p_plan_name: planName,
+      p_sale_id: saleId,
+      p_product_id: productId,
+      p_amount: amount || expectedPrice,
+      p_currency: currency || 'USD',
+      p_license_key: licenseKey,
+      p_customer_email: customerEmail || null,
+      p_period_start: periodStart,
+      p_period_end: periodEnd,
+      p_payload: payload
     });
 
-    // 2. Insert into subscription_events
-    await supabaseServer.from('subscription_events').insert({
-      user_id: targetUserId,
-      plan_id: mappedPlan,
-      amount_paid: amount || expectedPrice,
-      currency: currency || 'USD',
-      payment_provider: 'chariow',
-      provider_reference: saleId,
-      status: 'completed',
-      created_at: periodStart,
-    });
-
-    // 3. Update User Profile to Active Subscription
-    await supabaseServer
-      .from('profiles')
-      .update({
-        subscription_plan: mappedPlan,
-        subscription_status: 'active',
-        subscription_name: planName,
-        subscription_provider: 'chariow',
-        subscription_started_at: periodStart,
-        subscription_expires_at: periodEnd,
-        chariow_sale_id: saleId,
-        chariow_product_id: productId,
-        subscription_amount: amount || expectedPrice,
-        subscription_currency: currency || 'USD',
-        license_key: licenseKey,
-        license_status: 'active',
-        updated_at: periodStart,
-      })
-      .eq('id', targetUserId);
-
-    // 4. Update or Upsert subscriptions table
-    await supabaseServer.from('subscriptions').upsert(
-      {
-        user_id: targetUserId,
-        plan_id: mappedPlan,
-        status: 'active',
-        current_period_start: periodStart,
-        current_period_end: periodEnd,
-        payment_provider: 'chariow',
-        external_subscription_id: saleId,
-        updated_at: periodStart,
-      },
-      { onConflict: 'user_id' }
-    );
+    if (dbError) {
+      console.error('[CHARIOW WEBHOOK DB ERROR]:', dbError);
+      return res.status(500).json({
+        error: 'DATABASE_UPDATE_FAILED',
+        message: 'Impossible de mettre à jour l\'abonnement dans la base de données via RPC.',
+        details: dbError
+      });
+    }
 
     console.log(
-      `[CHARIOW WEBHOOK] Successfully upgraded user ${targetUserId} to ${mappedPlan.toUpperCase()} (Sale: ${saleId}, License: ${licenseKey || 'N/A'})`
+      `[CHARIOW WEBHOOK] Successfully processed upgrade via SECURITY DEFINER for user ${targetUserId} to ${mappedPlan.toUpperCase()} (Sale: ${saleId}, License: ${licenseKey || 'N/A'})`
     );
 
     return res.status(200).json({
       received: true,
-      activated: true,
+      activated: dbResult?.activated ?? true,
+      idempotent: dbResult?.idempotent ?? false,
       user_id: targetUserId,
       plan: mappedPlan,
       sale_id: saleId,
       license_key: licenseKey,
       expires_at: periodEnd,
+      message: dbResult?.message || 'Abonnement traité avec succès.'
     });
   } catch (error: any) {
     console.error('[CHARIOW WEBHOOK] Error processing webhook:', error);

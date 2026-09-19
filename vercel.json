@@ -6,6 +6,10 @@
       "destination": "/api/webhooks/chariow.ts"
     },
     {
+      "source": "/api/webhook/chariow",
+      "destination": "/api/webhooks/chariow.ts"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index.ts"
     },
