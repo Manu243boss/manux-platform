@@ -37,6 +37,7 @@ import { CurrencyService } from '../../services/currency';
 import { StorageService } from '../../services/storage';
 import { CountryService, CountryData, DEFAULT_COUNTRIES } from '../../services/countries';
 import { CacheService } from '../../services/cacheService';
+import { CurrencyCountryModal } from '../../components/ui/CurrencyCountryModal';
 
 export const DashboardProducts: React.FC = () => {
   const navigate = useNavigate();
@@ -51,6 +52,7 @@ export const DashboardProducts: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(1);
+  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -778,25 +780,30 @@ export const DashboardProducts: React.FC = () => {
 
                       <div className="space-y-1">
                         <label className="text-xs font-bold text-slate-900 flex items-center justify-between">
-                          <span>Devise du compte <span className="text-rose-600">*</span></span>
-                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                            🔒 Définie par défaut
+                          <span>Devise du produit <span className="text-rose-600">*</span></span>
+                          <span className="text-[10px] font-extrabold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                            ✨ Configurable
                           </span>
                         </label>
-                        <select
-                          value={currency}
-                          onChange={(e) => setCurrency(e.target.value)}
-                          disabled
-                          className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-bold rounded-xl border border-slate-300 text-slate-950 bg-slate-100 cursor-not-allowed shadow-xs"
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrencyModal(true)}
+                          className="w-full flex items-center justify-between px-3.5 py-2.5 text-xs sm:text-sm font-bold rounded-xl border border-slate-300 hover:border-amber-400 text-slate-950 bg-white hover:bg-amber-50/20 transition-all text-left shadow-xs cursor-pointer"
                         >
-                          {countriesList.map((c) => (
-                            <option key={`${c.code}_${c.currencyCode}`} value={c.currencyCode}>
-                              {c.flagEmoji} {c.currencyCode} — {c.currencyName} ({c.name})
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-[10px] font-semibold text-slate-600 mt-1">
-                          🔒 Fixée sur la devise de votre compte (<strong className="text-slate-950">{currency}</strong>). Modifiable dans vos <Link to="/dashboard/settings" className="text-emerald-700 underline font-bold">Paramètres</Link>.
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg leading-none">
+                              {countriesList.find((c) => c.currencyCode === currency)?.flagEmoji || '🌍'}
+                            </span>
+                            <span>
+                              {countriesList.find((c) => c.currencyCode === currency)?.currencyName || 'Devise'} ({currency})
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-300">
+                            Changer
+                          </span>
+                        </button>
+                        <p className="text-[10px] font-semibold text-slate-500 mt-1">
+                          Cliquez pour choisir la devise dans laquelle vous vendez ce produit sur Chariow.
                         </p>
                       </div>
                     </div>
@@ -1112,6 +1119,16 @@ export const DashboardProducts: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      {showCurrencyModal && (
+        <CurrencyCountryModal
+          isOpen={showCurrencyModal}
+          onClose={() => setShowCurrencyModal(false)}
+          onSelectCountry={(country) => setCurrency(country.currencyCode)}
+          selectedCountryCode={countriesList.find((c) => c.currencyCode === currency)?.code}
+          title="Devise du produit"
+          subtitle="Choisissez la devise officielle pour l'affichage de ce produit"
+        />
       )}
     </div>
   );
