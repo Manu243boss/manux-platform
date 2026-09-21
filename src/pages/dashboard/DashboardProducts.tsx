@@ -603,7 +603,7 @@ export const DashboardProducts: React.FC = () => {
 
       {/* HORIZONTAL MULTI-STEP PRODUCT MODAL WITH SIDEBAR */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-[100] flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
           <div className="bg-white w-full h-full sm:h-auto sm:max-h-[90vh] max-w-4xl flex flex-col md:flex-row overflow-hidden sm:rounded-3xl shadow-2xl">
             
             {/* Mobile Header / Stepper (visible on mobile only) */}
@@ -709,7 +709,7 @@ export const DashboardProducts: React.FC = () => {
             </div>
 
             {/* Modal Right Content (Active Step Form) */}
-            <div className="flex-1 p-4 sm:p-7 flex flex-col justify-between overflow-y-auto bg-white">
+            <div className="flex-1 p-4 pb-20 sm:p-7 flex flex-col justify-between overflow-y-auto bg-white">
               <div>
                 {/* Desktop Top bar */}
                 <div className="hidden md:flex items-center justify-between pb-4 mb-4 border-b border-slate-100">

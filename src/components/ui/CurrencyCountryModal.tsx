@@ -77,7 +77,7 @@ export const CurrencyCountryModal: React.FC<CurrencyCountryModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-[110] overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div
         className="fixed inset-0"
         onClick={onClose}
