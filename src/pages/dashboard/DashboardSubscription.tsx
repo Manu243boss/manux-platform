@@ -195,7 +195,7 @@ export const DashboardSubscription: React.FC = () => {
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-16">
-      <SeoHead title="Mon Abonnement - Dashboard ManuX" />
+      <SeoHead title="Mon Abonnement & Forfaits • Dashboard ManuX" />
 
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs">

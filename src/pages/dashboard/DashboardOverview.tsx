@@ -143,7 +143,7 @@ export const DashboardOverview: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <SeoHead title="Vue d'ensemble - Dashboard & Statistiques" />
+      <SeoHead title="Vue d'ensemble • Dashboard ManuX" />
 
       {/* Pro Upgrade Modal */}
       <ProUpgradeModal

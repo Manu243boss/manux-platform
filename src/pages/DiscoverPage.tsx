@@ -116,8 +116,9 @@ export const DiscoverPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50/40 pb-20">
       <SeoHead
-        title="Découvrir"
+        title="Découvrir les Produits & Vidéos Démo | ManuX"
         description="Explorez le flux mixte des démonstrations vidéo, produits Chariow et créateurs africains sur ManuX."
+        canonical="https://manux.xttools.site/discover"
       />
 
       {/* Top sticky category selector */}

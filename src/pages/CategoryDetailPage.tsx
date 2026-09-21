@@ -64,8 +64,9 @@ export const CategoryDetailPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <SeoHead
-        title={category?.name || 'Catégorie'}
+        title={category ? `${category.name} • Produits & Vidéos | ManuX` : 'Catégorie | ManuX'}
         description={category?.description || `Explorez tous les produits de la catégorie ${category?.name} sur ManuX.`}
+        canonical={category ? `https://manux.xttools.site/category/${category.slug}` : undefined}
       />
 
       <div className="border-b border-slate-200/80 pb-5">

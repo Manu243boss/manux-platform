@@ -107,6 +107,7 @@ export const HomePage: React.FC = () => {
       <SeoHead
         title="ManuX • Découverte de Produits & Vidéos Démo Chariow"
         description="Explorez le flux mixte intelligent ManuX : 65% de vidéos de démonstration et 35% de produits vérifiés issus des boutiques Chariow d’Afrique."
+        canonical="https://manux.xttools.site/"
       />
 
       {/* Collapsible Refined Filter Bar on Scroll (Slides up & disappears when scrolling down, reappears at the top) */}

@@ -20,6 +20,7 @@ import { TikTokComments } from '../components/videos/TikTokComments';
 import { VerifiedBadge } from '../components/ui/VerifiedBadge';
 import { useCurrency } from '../context/CurrencyContext';
 import { TikTokLoader } from '../components/ui/TikTokLoader';
+import { SeoHead } from '../components/ui/SeoHead';
 
 type RecommendationItem =
   | { type: 'video'; data: Video }
@@ -152,8 +153,33 @@ export const VideoDetailPage: React.FC = () => {
     productGallery.push(product.main_image_url);
   }
 
+  const videoThumb =
+    video.thumbnail_url ||
+    (video.youtube_video_id
+      ? `https://img.youtube.com/vi/${video.youtube_video_id}/hqdefault.jpg`
+      : 'https://manux.xttools.site/og-image.png');
+
+  const videoJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    'name': video.title,
+    'description': video.description || `Démonstration vidéo du produit ${video.product?.title || ''} sur ManuX.`,
+    'thumbnailUrl': [videoThumb],
+    'uploadDate': video.created_at || new Date().toISOString(),
+    'embedUrl': video.youtube_video_id ? `https://www.youtube.com/embed/${video.youtube_video_id}` : undefined,
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6">
+      <SeoHead
+        title={`${video.title} • Démo Vidéo | ManuX Videos`}
+        description={video.description?.slice(0, 160) || `Découvrez la démonstration vidéo de ${video.title} sur ManuX.`}
+        image={videoThumb}
+        canonical={`https://manux.xttools.site/videos/${video.slug}`}
+        type="video.other"
+        jsonLd={videoJsonLd}
+      />
+
       {/* Top Navigation Bar with Back Arrow */}
       <div className="flex items-center justify-between gap-4">
         <button

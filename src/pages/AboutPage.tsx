@@ -7,8 +7,9 @@ export const AboutPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
       <SeoHead
-        title="À Propos"
+        title="À Propos de ManuX Plateforme"
         description="Découvrez la vision et la mission de ManuX : propulser l'économie numérique et les créateurs africains via les boutiques Chariow."
+        canonical="https://manux.xttools.site/about"
       />
 
       <div className="space-y-3 text-center sm:text-left border-b border-slate-200/80 pb-6">

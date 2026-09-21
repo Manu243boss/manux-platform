@@ -43,8 +43,9 @@ export const CreatorsPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
       <SeoHead
-        title="Répertoire des Créateurs"
+        title="Créateurs & Vendeurs Chariow | ManuX Creators"
         description="Découvrez les entrepreneurs, formateurs et créateurs de contenu africains présents sur ManuX."
+        canonical="https://manux.xttools.site/creators"
       />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-slate-200/80 pb-4 sm:pb-5">

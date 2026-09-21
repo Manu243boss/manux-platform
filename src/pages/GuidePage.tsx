@@ -26,8 +26,9 @@ export const GuidePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50/50 py-8 sm:py-12">
       <SeoHead
-        title="Guide Complet Créateurs : Réussir avec ManuX & Chariow"
+        title="Guide Créateur Chariow & Vente 24/24 | ManuX"
         description="Découvrez comment connecter votre boutique Chariow, comprendre l'algorithme de recommandation ManuX et maximiser vos ventes 24h/24 grâce aux vidéos de démonstration."
+        canonical="https://manux.xttools.site/guide"
       />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10 sm:space-y-12">

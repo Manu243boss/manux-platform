@@ -162,7 +162,7 @@ export const DashboardVideos: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <SeoHead title="Mes vidéos démo • ManuX" />
+      <SeoHead title="Mes Vidéos Démo • Dashboard ManuX" />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">

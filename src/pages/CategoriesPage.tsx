@@ -32,8 +32,9 @@ export const CategoriesPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <SeoHead
-        title="Toutes les Catégories de Produits - ManuX"
+        title="Catégories & Thématiques | ManuX"
         description="Parcourez les produits et formations par catégorie : formations, logiciels, e-books, templates, artisanat et business."
+        canonical="https://manux.xttools.site/categories"
       />
 
       <div className="border-b border-slate-200/80 pb-5">

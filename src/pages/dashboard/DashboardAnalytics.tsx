@@ -429,7 +429,7 @@ export const DashboardAnalytics: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <SeoHead title="Analytics & Graphiques Avancés - Dashboard ManuX" />
+      <SeoHead title="Analytics & Statistiques • Dashboard ManuX" />
 
       {/* Pro Upgrade Modal */}
       <ProUpgradeModal

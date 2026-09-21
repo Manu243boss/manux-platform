@@ -143,8 +143,9 @@ export const PricingPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       <SeoHead
-        title="Tarifs et Abonnements - ManuX"
+        title="Tarifs & Forfaits Créateurs Chariow | ManuX"
         description="Découvrez nos forfaits transparents pour présenter vos produits Chariow en vidéo : Gratuit, Créateur ($2.50/mois) et Pro ($9/mois) traités en toute sécurité par Chariow."
+        canonical="https://manux.xttools.site/pricing"
       />
 
       {/* Pending Checkout Alert / Launch Banner */}

@@ -26,8 +26,9 @@ export const HelpPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
       <SeoHead
-        title="Centre d'aide"
+        title="Centre d'Aide & FAQ | ManuX"
         description="Foire aux questions et guide d'utilisation de ManuX pour les créateurs et visiteurs."
+        canonical="https://manux.xttools.site/help"
       />
 
       <div className="border-b border-slate-200/80 pb-5">

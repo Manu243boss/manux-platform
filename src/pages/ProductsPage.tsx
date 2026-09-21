@@ -59,8 +59,9 @@ export const ProductsPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
       <SeoHead
-        title="Tous les Produits Chariow - ManuX"
+        title="Produits & Formations Chariow | ManuX"
         description="Catalogue complet des produits Chariow présentés par les créateurs ManuX : formations, e-books, logiciels et créations avec redirection directe vers le paiement sécurisé."
+        canonical="https://manux.xttools.site/products"
       />
 
       {/* Header */}

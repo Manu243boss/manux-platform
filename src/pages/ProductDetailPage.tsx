@@ -135,11 +135,30 @@ export const ProductDetailPage: React.FC = () => {
 
   const description = product.description || '';
 
+  const productJsonLd = {
+    '@context': 'https://schema.org/',
+    '@type': 'Product',
+    'name': product.title,
+    'image': displayImage ? [displayImage] : undefined,
+    'description': description.slice(0, 300) || `Achetez ${product.title} sur Chariow via ManuX.`,
+    'offers': {
+      '@type': 'Offer',
+      'url': product.external_chariow_url || (typeof window !== 'undefined' ? window.location.href : undefined),
+      'priceCurrency': product.currency || 'USD',
+      'price': product.price || 0,
+      'availability': 'https://schema.org/InStock',
+    },
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8">
       <SeoHead
-        title={`${product.title} • Produit Chariow sur ManuX`}
-        description={product.description?.slice(0, 160) || `Achetez ${product.title} sur Chariow via ManuX.`}
+        title={`${product.title} • Acheter sur Chariow`}
+        description={description.slice(0, 160) || `Achetez ${product.title} sur Chariow via ManuX.`}
+        image={displayImage || undefined}
+        canonical={`https://manux.xttools.site/products/${product.slug}`}
+        type="product"
+        jsonLd={productJsonLd}
       />
 
       {/* Top Back & Share Navigation */}

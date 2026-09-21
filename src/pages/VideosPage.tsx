@@ -73,8 +73,9 @@ export const VideosPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-5">
       <SeoHead
-        title="Démonstrations Vidéo • ManuX"
+        title="Vidéos Démo & Présentations Produits | ManuX Videos"
         description="Regardez les démonstrations vidéo des produits et formations créés par les entrepreneurs africains."
+        canonical="https://manux.xttools.site/videos"
       />
 
       {/* Page Header */}

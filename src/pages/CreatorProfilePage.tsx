@@ -109,11 +109,27 @@ export const CreatorProfilePage: React.FC = () => {
     );
   }
 
+  const creatorJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'ProfilePage',
+    'mainEntity': {
+      '@type': 'Person',
+      'name': profile.display_name || profile.full_name || profile.username,
+      'alternateName': `@${profile.username}`,
+      'description': profile.bio || `Boutique et catalogue de ${profile.display_name || profile.username} sur ManuX.`,
+      'image': profile.avatar_url || undefined,
+    },
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-8">
       <SeoHead
-        title={`${profile.display_name || `@${profile.username}`} • Vitrine Chariow ManuX`}
-        description={profile.bio || `Découvrez la vitrine officielle de ${profile.display_name} sur ManuX.`}
+        title={`${profile.display_name || `@${profile.username}`} • Boutique & Produits | ManuX Creators`}
+        description={profile.bio || `Découvrez la vitrine officielle et les produits Chariow de ${profile.display_name || profile.username} sur ManuX.`}
+        image={profile.avatar_url || profile.banner_url || undefined}
+        canonical={`https://manux.xttools.site/creators/${profile.username}`}
+        type="profile"
+        jsonLd={creatorJsonLd}
       />
 
       {/* Header Banner / Cover */}

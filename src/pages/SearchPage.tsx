@@ -97,8 +97,9 @@ export const SearchPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       <SeoHead
-        title={debouncedQuery ? `Recherche : ${debouncedQuery} - ManuX` : 'Recherche - ManuX'}
+        title={debouncedQuery ? `Recherche : ${debouncedQuery} | ManuX` : 'Recherche Produits, Vidéos & Créateurs | ManuX'}
         description="Recherchez des produits, des créateurs ou des démonstrations vidéo sur ManuX avec redirection directe vers les boutiques Chariow."
+        canonical="https://manux.xttools.site/search"
       />
 
       {/* Live As-You-Type Search Input Bar */}

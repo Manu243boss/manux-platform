@@ -305,7 +305,7 @@ export const DashboardProfile: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <SeoHead
-        title="Mon Profil & Vitrine - Dashboard ManuX"
+        title="Mon Profil & Vitrine • Dashboard ManuX"
         description="Gérez votre profil public, votre photo de couverture (Cover) et présentez votre vitrine de créateur Chariow."
       />
 

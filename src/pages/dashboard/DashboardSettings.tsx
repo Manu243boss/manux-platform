@@ -276,7 +276,7 @@ export const DashboardSettings: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <SeoHead title="Paramètres du compte & Clés API - Dashboard" />
+      <SeoHead title="Paramètres du Compte • Dashboard ManuX" />
 
       {/* Header */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xs">
