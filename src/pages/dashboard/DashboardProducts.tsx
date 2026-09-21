@@ -1045,12 +1045,13 @@ export const DashboardProducts: React.FC = () => {
                 {/* Step 6: Récapitulatif & Publication */}
                 {currentStep === 6 && (
                   <div className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
                       <div className="text-xs font-black uppercase text-slate-500 tracking-wider">
-                        Aperçu de la Fiche Produit
+                        Aperçu & Récapitulatif des Métadonnées
                       </div>
 
-                      <div className="flex items-start gap-4">
+                      {/* Header Identity card */}
+                      <div className="flex items-start gap-4 pb-3 border-b border-slate-200">
                         <div className="w-16 h-16 rounded-xl bg-slate-200 overflow-hidden border border-slate-300 shrink-0 flex items-center justify-center">
                           {imageUrl || thumbnailUrl ? (
                             <img src={imageUrl || thumbnailUrl} alt="" className="w-full h-full object-cover" />
@@ -1063,12 +1064,55 @@ export const DashboardProducts: React.FC = () => {
                           <div className="text-xs font-extrabold text-amber-700 mt-0.5">
                             {CurrencyService.formatOriginal(parseFloat(price) || 0, currency)}
                           </div>
-                          {externalUrl && (
-                            <div className="text-[11px] font-semibold text-slate-500 truncate mt-1">
-                              Redirection : {externalUrl}
-                            </div>
-                          )}
+                          <div className="text-[10px] font-bold text-slate-500 mt-1">
+                            Catégorie : <strong className="text-slate-700">{categories.find(c => c.id === categoryId)?.name || 'Non classé'}</strong>
+                          </div>
                         </div>
+                      </div>
+
+                      {/* Full Metadata Details list */}
+                      <div className="space-y-3 text-xs">
+                        {externalUrl ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2 bg-white rounded-xl border border-slate-200">
+                            <span className="font-bold text-slate-500 shrink-0">Lien Chariow (Boutique) :</span>
+                            <span className="font-extrabold text-emerald-800 break-all text-left sm:max-w-[70%] truncate block">
+                              {externalUrl}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="p-2 bg-rose-50/50 rounded-xl border border-rose-100 text-[11px] font-semibold text-rose-700">
+                            ⚠️ Aucun lien direct Chariow n'a été configuré.
+                          </div>
+                        )}
+
+                        {videoUrl ? (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 p-2 bg-white rounded-xl border border-slate-200">
+                            <span className="font-bold text-slate-500 shrink-0">Vidéo de Démonstration :</span>
+                            <span className="font-extrabold text-rose-700 break-all text-right sm:max-w-[70%] truncate block">
+                              {videoUrl}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="p-2 bg-amber-50/50 rounded-xl border border-amber-100 text-[11px] font-semibold text-amber-800">
+                            💡 Astuce : Ajoutez une vidéo de démonstration pour doubler vos ventes !
+                          </div>
+                        )}
+
+                        {secondaryImageUrl ? (
+                          <div className="flex items-center gap-3 p-2 bg-white rounded-xl border border-slate-200">
+                            <img src={secondaryImageUrl} alt="" className="w-8 h-8 rounded-lg object-cover border" />
+                            <span className="font-bold text-slate-500">Deuxième Photo Complémentaire configurée</span>
+                          </div>
+                        ) : null}
+
+                        {description ? (
+                          <div className="space-y-1 p-2 bg-white rounded-xl border border-slate-200">
+                            <div className="font-bold text-slate-500">Description détaillée :</div>
+                            <p className="text-slate-800 font-medium line-clamp-3 leading-relaxed whitespace-pre-wrap">
+                              {description}
+                            </p>
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </div>
